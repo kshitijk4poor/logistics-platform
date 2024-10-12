@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+sqlalchemy
+aioredis
+celery[redis]
+kafka-python
+geoalchemy2
+asyncpg
+pydantic
+h3
