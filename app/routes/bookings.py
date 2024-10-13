@@ -4,33 +4,24 @@ from typing import Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.dependencies import cache, rate_limit
 from app.models import Booking
+from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.matching import assign_driver
 from app.services.pricing import calculate_price
-from scripts.caching import cache
-from scripts.rate_limiter import rate_limit
-from app.schemas.booking import BookingResponse
+from db.database import get_db
 
 router = APIRouter()
 
-class BookingRequest(BaseModel):
-    user_id: int
-    pickup_latitude: float
-    pickup_longitude: float
-    dropoff_latitude: float
-    dropoff_longitude: float
-    vehicle_type: str
-    scheduled_time: Optional[datetime] = None
 
 @router.post("/book", response_model=BookingResponse)
 @rate_limit(max_calls=5, time_frame=60)
 async def create_booking(
     booking_data: BookingRequest,
     background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         # Check cache for recent identical booking
@@ -65,8 +56,8 @@ async def create_booking(
         )
 
         db.add(booking)
-        db.commit()
-        db.refresh(booking)
+        await db.commit()
+        await db.refresh(booking)
 
         await cache.set(
             cache_key, {"id": booking.id, "price": price}, expire=300
@@ -80,31 +71,36 @@ async def create_booking(
         )
 
     except Exception as e:
-        db.rollback()
+        await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/booking/{booking_id}")
-async def get_booking(booking_id: int, db: Session = Depends(get_db)):
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+async def get_booking(booking_id: int, db: AsyncSession = Depends(get_db)):
+    booking = await db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     return booking
 
+
 @router.put("/booking/{booking_id}/cancel")
-async def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
-    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+async def cancel_booking(booking_id: int, db: AsyncSession = Depends(get_db)):
+    booking = await db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.status == "completed":
         raise HTTPException(status_code=400, detail="Cannot cancel a completed booking")
 
     booking.status = "cancelled"
-    db.commit()
+    await db.commit()
     return {"status": "cancelled"}
+
 
 async def notify_driver(driver_id: int, booking_id: int):
     # Implement driver notification logic (e.g., push notification)
     pass
 
-async def update_analytics(booking_id: int, db: Session = Depends(get_db)):
+
+async def update_analytics(booking_id: int, db: AsyncSession):
     # Implementation
+    pass

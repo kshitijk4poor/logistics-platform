@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 from celery import Celery
 from sqlalchemy import func
 
-from db.database import SessionLocal
 from app.models import Booking, Driver, User
+from db.database import SessionLocal
 
 app = Celery("tasks", broker="redis://localhost:6379/0")
 
@@ -49,19 +49,27 @@ def compute_analytics():
 
         # Compute overall analytics
         total_bookings = (
-            db.query(func.count(Booking.id)).filter(Booking.date >= last_24_hours).scalar()
+            db.query(func.count(Booking.id))
+            .filter(Booking.date >= last_24_hours)
+            .scalar()
         )
         total_revenue = (
-            db.query(func.sum(Booking.price)).filter(Booking.date >= last_24_hours).scalar()
+            db.query(func.sum(Booking.price))
+            .filter(Booking.date >= last_24_hours)
+            .scalar()
         )
         avg_price = (
-            db.query(func.avg(Booking.price)).filter(Booking.date >= last_24_hours).scalar()
+            db.query(func.avg(Booking.price))
+            .filter(Booking.date >= last_24_hours)
+            .scalar()
         )
         active_drivers = (
             db.query(func.count(Driver.id)).filter(Driver.is_available == True).scalar()
         )
         new_users = (
-            db.query(func.count(User.id)).filter(User.created_at >= last_24_hours).scalar()
+            db.query(func.count(User.id))
+            .filter(User.created_at >= last_24_hours)
+            .scalar()
         )
 
         analytics_data = {

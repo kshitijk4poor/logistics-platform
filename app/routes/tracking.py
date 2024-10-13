@@ -5,6 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
@@ -55,7 +56,9 @@ class ConnectionManager:
         ]
         return nearby_drivers
 
+
 manager = ConnectionManager()
+
 
 @router.websocket("/ws/{driver_id}")
 async def websocket_endpoint(websocket: WebSocket, driver_id: str):
@@ -89,6 +92,7 @@ async def websocket_endpoint(websocket: WebSocket, driver_id: str):
     except WebSocketDisconnect:
         manager.disconnect(driver_id)
 
+
 @router.get("/nearby-drivers")
 async def get_nearby_drivers(
     lat: float, lng: float, radius_km: float = 5, vehicle_type: str = "all"
@@ -96,12 +100,20 @@ async def get_nearby_drivers(
     if vehicle_type.lower() != "all":
         # Filter by vehicle_type
         nearby_drivers = [
-            {"driver_id": id, "location": info["h3_index"], "vehicle_type": info["vehicle_type"]}
+            {
+                "driver_id": id,
+                "location": info["h3_index"],
+                "vehicle_type": info["vehicle_type"],
+            }
             for id in manager.get_nearby_drivers(lat, lng, radius_km, vehicle_type)
         ]
     else:
         nearby_drivers = [
-            {"driver_id": id, "location": info["h3_index"], "vehicle_type": info["vehicle_type"]}
+            {
+                "driver_id": id,
+                "location": info["h3_index"],
+                "vehicle_type": info["vehicle_type"],
+            }
             for id in manager.get_nearby_drivers(lat, lng, radius_km, "all")
         ]
     return {"nearby_drivers": nearby_drivers}

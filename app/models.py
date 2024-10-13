@@ -1,22 +1,27 @@
+from enum import Enum
+
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime
+from sqlalchemy import Enum as SqlEnum
+from sqlalchemy import Float, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-from enum import Enum
-from sqlalchemy import Enum as SqlEnum
 
 Base = declarative_base()
+
 
 class VehicleTypeEnum(str, Enum):
     economy = "economy"
     standard = "standard"
     premium = "premium"
 
+
 class BookingStatusEnum(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
     cancelled = "cancelled"
     completed = "completed"
+
 
 class User(Base):
     __tablename__ = "users"
@@ -28,7 +33,10 @@ class User(Base):
     payment_info = Column(
         String, nullable=True
     )  # Assuming payment info is stored as a string
-    bookings = relationship("Booking", back_populates="user", cascade="all, delete-orphan")
+    bookings = relationship(
+        "Booking", back_populates="user", cascade="all, delete-orphan"
+    )
+
 
 class Driver(Base):
     __tablename__ = "drivers"
@@ -41,6 +49,7 @@ class Driver(Base):
     car_info = Column(String, nullable=True)
     location = Column(Geometry("POINT"), nullable=True)
     is_available = Column(Boolean, default=True)
+
 
 class Booking(Base):
     __tablename__ = "bookings"

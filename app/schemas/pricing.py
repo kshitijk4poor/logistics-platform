@@ -1,13 +1,15 @@
+from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field, validator
-from datetime import datetime
-from enum import Enum
+
 
 class VehicleType(str, Enum):
     economy = "economy"
     standard = "standard"
     premium = "premium"
+
 
 class PricingSchema(BaseModel):
     pickup_latitude: float = Field(

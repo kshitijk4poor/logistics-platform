@@ -1,12 +1,14 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
-from app.schemas.pricing import PricingSchema, PriceResponse
+from app.schemas.pricing import PriceResponse, PricingSchema
 from app.services.pricing import calculate_price
-import logging
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
+
 
 @router.post(
     "/price",
