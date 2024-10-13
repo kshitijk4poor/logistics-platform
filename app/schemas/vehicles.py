@@ -22,6 +22,18 @@ class VehicleSchema(BaseModel):
     )
 
 
+class VehicleUpdate(BaseModel):
+    vehicle_type: Optional[VehicleTypeEnum] = Field(
+        None, description="Type of the vehicle"
+    )
+    make: Optional[str] = Field(None, description="Make of the vehicle")
+    model: Optional[str] = Field(None, description="Model of the vehicle")
+    year: Optional[int] = Field(None, description="Year of manufacture")
+    license_plate: Optional[str] = Field(None, description="License plate number")
+    capacity: Optional[int] = Field(None, description="Passenger capacity")
+    status: Optional[str] = Field(None, description="Current status of the vehicle")
+
+
 class VehicleResponse(VehicleSchema):
     id: int = Field(..., description="Unique identifier for the vehicle")
     driver_id: Optional[int] = Field(

@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta, timezone
 import json
+from datetime import datetime, timedelta, timezone
+
+import aioredis
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-import aioredis
 
 from app.schemas.analytics import AnalyticsResponse, PopularPickupLocation
 from db.database import get_db
@@ -11,8 +12,10 @@ router = APIRouter()
 
 REDIS_KEY = "analytics_data"
 
+
 async def get_redis_client():
     return await aioredis.from_url("redis://localhost", decode_responses=True)
+
 
 @router.get("/analytics", response_model=AnalyticsResponse)
 @rate_limit(max_calls=10, time_frame=3600)
@@ -25,8 +28,11 @@ async def get_analytics(db: AsyncSession = Depends(get_db)):
     try:
         analytics_data = await redis.get(REDIS_KEY)
         if analytics_data is None:
-            raise HTTPException(status_code=500, detail="Analytics data not found. Please try again later.")
-        
+            raise HTTPException(
+                status_code=500,
+                detail="Analytics data not found. Please try again later.",
+            )
+
         analytics_data = json.loads(analytics_data)
 
         popular_pickup_locations = [

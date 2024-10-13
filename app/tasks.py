@@ -1,19 +1,25 @@
 import json
 import logging
 from datetime import datetime, timedelta
+
+import aioredis
 from celery import Celery
 from sqlalchemy import func
+
 from app.models import Booking, Driver, User
 from db.database import SessionLocal
-import aioredis
 
 # Setup basic configuration for logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 app = Celery("tasks", broker="redis://localhost:6379/0")
 
+
 async def get_redis_client():
     return await aioredis.from_url("redis://localhost", decode_responses=True)
+
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):

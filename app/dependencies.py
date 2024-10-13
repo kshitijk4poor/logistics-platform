@@ -72,10 +72,15 @@ def rate_limit(max_calls: int, time_frame: int):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            request = args[0]
-            key = f"rate_limit:{func.__name__}:{request.client.host}"
+            request = kwargs.get("request") or args[0]
+            client_ip = request.client.host
+            key = f"rate_limit:{func.__name__}:{client_ip}"
+
+            rate_limiter = RateLimiter(redis)
+
             if await rate_limiter.is_rate_limited(key, max_calls, time_frame):
                 raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
             return await func(*args, **kwargs)
 
         return wrapper
