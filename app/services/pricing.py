@@ -52,7 +52,7 @@ def get_surge_multiplier(pickup_h3: str) -> float:
     Determine surge multiplier based on the H3 index of the pickup location.
     This is a placeholder; implement actual logic as per requirements.
     """
-    # Example logic: Increase surge during peak hours or high demand areas
+
     return SURGE_MULTIPLIER
 
 

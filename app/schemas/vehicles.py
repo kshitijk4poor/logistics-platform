@@ -5,8 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class VehicleTypeEnum(str, Enum):
-    sedan = "sedan"
-    suv = "suv"
+    refrigerated_truck = "refrigerated_truck"
     van = "van"
     truck = "truck"
 
@@ -28,6 +27,3 @@ class VehicleResponse(VehicleSchema):
     driver_id: Optional[int] = Field(
         None, description="ID of the assigned driver, if any"
     )
-
-    class Config:
-        orm_mode = True

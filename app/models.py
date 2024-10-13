@@ -11,9 +11,9 @@ Base = declarative_base()
 
 
 class VehicleTypeEnum(str, Enum):
-    economy = "economy"
-    standard = "standard"
-    premium = "premium"
+    refrigerated_truck = "refrigerated_truck"
+    van = "van"
+    truck = "truck"
 
 
 class BookingStatusEnum(str, Enum):
