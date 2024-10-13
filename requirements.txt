@@ -8,3 +8,4 @@ geoalchemy2
 asyncpg
 pydantic
 h3
+jose

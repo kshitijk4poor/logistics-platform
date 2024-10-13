@@ -1,14 +1,19 @@
 import json
+import logging
 from datetime import datetime, timedelta
-
 from celery import Celery
 from sqlalchemy import func
-
 from app.models import Booking, Driver, User
 from db.database import SessionLocal
+import aioredis
+
+# Setup basic configuration for logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Celery("tasks", broker="redis://localhost:6379/0")
 
+async def get_redis_client():
+    return await aioredis.from_url("redis://localhost", decode_responses=True)
 
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -16,13 +21,14 @@ def setup_periodic_tasks(sender, **kwargs):
 
 
 @app.task
-def compute_analytics():
+async def compute_analytics():
     db = SessionLocal()
+    redis = await get_redis_client()
     try:
+        logging.info("Starting computation of analytics")
         now = datetime.now()
         last_24_hours = now - timedelta(hours=24)
 
-        # Compute hourly analytics for the last 24 hours
         hourly_data = []
         for hour in range(24):
             start_time = last_24_hours + timedelta(hours=hour)
@@ -47,7 +53,6 @@ def compute_analytics():
                 }
             )
 
-        # Compute overall analytics
         total_bookings = (
             db.query(func.count(Booking.id))
             .filter(Booking.date >= last_24_hours)
@@ -82,13 +87,14 @@ def compute_analytics():
             "hourly_data": hourly_data,
         }
 
-        # Store analytics data (you might want to use a database or a file for this)
-        with open("analytics_data.json", "w") as f:
-            json.dump(analytics_data, f)
+        # Store analytics data in Redis
+        await redis.set(REDIS_KEY, json.dumps(analytics_data))
+        logging.info("Analytics computed and stored successfully")
         return "Analytics computed and stored successfully"
 
     except Exception as e:
-        print(f"Error in compute_analytics: {e}")
+        logging.error(f"Error in compute_analytics: {e}")
         raise
     finally:
         db.close()
+        await redis.close()

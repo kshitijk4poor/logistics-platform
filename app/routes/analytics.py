@@ -1,68 +1,51 @@
 from datetime import datetime, timedelta, timezone
-
-from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+import json
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+import aioredis
 
-from app.models import Booking, Driver, User
 from app.schemas.analytics import AnalyticsResponse, PopularPickupLocation
 from db.database import get_db
 
 router = APIRouter()
 
+REDIS_KEY = "analytics_data"
+
+async def get_redis_client():
+    return await aioredis.from_url("redis://localhost", decode_responses=True)
 
 @router.get("/analytics", response_model=AnalyticsResponse)
+@rate_limit(max_calls=10, time_frame=3600)
 async def get_analytics(db: AsyncSession = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    last_24_hours = now - timedelta(hours=24)
+    """
+    Fetches precomputed analytics data from Redis.
+    If the data does not exist or cannot be read, it raises an HTTP 500 error.
+    """
+    redis = await get_redis_client()
+    try:
+        analytics_data = await redis.get(REDIS_KEY)
+        if analytics_data is None:
+            raise HTTPException(status_code=500, detail="Analytics data not found. Please try again later.")
+        
+        analytics_data = json.loads(analytics_data)
 
-    # Total number of bookings in the last 24 hours
-    total_bookings = await db.scalar(
-        select(func.count(Booking.id)).where(Booking.date >= last_24_hours)
-    )
+        popular_pickup_locations = [
+            PopularPickupLocation(location=loc["pickup_location"], count=loc["count"])
+            for loc in analytics_data.get("popular_pickup_locations", [])
+        ]
 
-    # Total revenue in the last 24 hours
-    total_revenue = await db.scalar(
-        select(func.sum(Booking.price)).where(Booking.date >= last_24_hours)
-    )
+        return AnalyticsResponse(
+            total_bookings=analytics_data.get("total_bookings", 0),
+            total_revenue=analytics_data.get("total_revenue", 0.0),
+            average_price=analytics_data.get("average_price", 0.0),
+            popular_pickup_locations=popular_pickup_locations,
+            active_drivers=analytics_data.get("active_drivers", 0),
+            new_users=analytics_data.get("new_users", 0),
+        )
 
-    # Average price per booking
-    avg_price = await db.scalar(
-        select(func.avg(Booking.price)).where(Booking.date >= last_24_hours)
-    )
-
-    # Most popular pickup locations
-    popular_pickups_query = (
-        select(Booking.pickup_location, func.count(Booking.id).label("count"))
-        .where(Booking.date >= last_24_hours)
-        .group_by(Booking.pickup_location)
-        .order_by(func.count(Booking.id).desc())
-        .limit(5)
-    )
-    result = await db.execute(popular_pickups_query)
-    popular_pickups = result.all()
-
-    # Number of active drivers
-    active_drivers = await db.scalar(
-        select(func.count(Driver.id)).where(Driver.is_available == True)
-    )
-
-    # Number of new users registered in the last 24 hours
-    new_users = await db.scalar(
-        select(func.count(User.id)).where(User.created_at >= last_24_hours)
-    )
-
-    # Transform popular pickups into response format
-    popular_pickup_locations = [
-        PopularPickupLocation(location=loc, count=count)
-        for loc, count in popular_pickups
-    ]
-
-    return AnalyticsResponse(
-        total_bookings=total_bookings,
-        total_revenue=float(total_revenue) if total_revenue else 0.0,
-        average_price=float(avg_price) if avg_price else 0.0,
-        popular_pickup_locations=popular_pickup_locations,
-        active_drivers=active_drivers,
-        new_users=new_users,
-    )
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Error reading analytics data.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+    finally:
+        await redis.close()
