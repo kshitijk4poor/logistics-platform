@@ -27,13 +27,24 @@ def setup_periodic_tasks(sender, **kwargs):
     sender.add_periodic_task(3600.0, compute_analytics.s(), name="compute every hour")
 
 
-@app.task
-async def compute_analytics():
+@app.task(bind=True, max_retries=3, default_retry_delay=60)
+async def compute_analytics(self):
     async with AsyncSession(engine) as db:
         try:
-            logging.info("Starting computation of analytics")
-            now = datetime.now()
-            last_24_hours = now - timedelta(hours=24)
+            redis = await get_redis_client()
+            
+            # Fetch incrementally updated data
+            total_bookings = int(await redis.get("analytics:total_bookings") or 0)
+            total_revenue = float(await redis.get("analytics:total_revenue") or 0)
+            
+            # Calculate average price from recent prices
+            recent_prices = await redis.lrange("analytics:recent_prices", 0, -1)
+            avg_price = sum(map(float, recent_prices)) / len(recent_prices) if recent_prices else 0
+            
+            active_drivers = int(await redis.get("analytics:active_drivers") or 0)
+            
+            # Fetch other data that needs full recomputation
+            last_24_hours = datetime.now() - timedelta(hours=24)
 
             hourly_data = []
             for hour in range(24):
@@ -55,18 +66,6 @@ async def compute_analytics():
                     }
                 )
 
-            total_bookings = await db.scalar(
-                select(func.count(Booking.id)).where(Booking.date >= last_24_hours)
-            )
-            total_revenue = await db.scalar(
-                select(func.sum(Booking.price)).where(Booking.date >= last_24_hours)
-            )
-            avg_price = await db.scalar(
-                select(func.avg(Booking.price)).where(Booking.date >= last_24_hours)
-            )
-            active_drivers = await db.scalar(
-                select(func.count(Driver.id)).where(Driver.is_available == True)
-            )
             new_users = await db.scalar(
                 select(func.count(User.id)).where(User.created_at >= last_24_hours)
             )
@@ -84,24 +83,22 @@ async def compute_analytics():
                 for row in popular_locations_result
             ]
 
+            # Store the final computed analytics
             analytics_data = {
-                "timestamp": now.isoformat(),
-                "total_bookings": total_bookings or 0,
-                "total_revenue": float(total_revenue) if total_revenue else 0,
-                "average_price": float(avg_price) if avg_price else 0,
-                "active_drivers": active_drivers or 0,
+                "timestamp": datetime.now().isoformat(),
+                "total_bookings": total_bookings,
+                "total_revenue": total_revenue,
+                "average_price": avg_price,
+                "active_drivers": active_drivers,
                 "new_users": new_users or 0,
                 "hourly_data": hourly_data,
                 "popular_pickup_locations": popular_pickup_locations,
             }
-
-            redis = await get_redis_client()
             await redis.set(REDIS_KEY, json.dumps(analytics_data))
-            await redis.close()
 
             logging.info("Analytics computed and stored successfully")
             return "Analytics computed and stored successfully"
 
         except Exception as e:
             logging.error(f"Error in compute_analytics: {e}")
-            raise
+            self.retry(exc=e)

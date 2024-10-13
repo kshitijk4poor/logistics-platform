@@ -52,7 +52,10 @@ def get_surge_multiplier(pickup_h3: str) -> float:
     Determine surge multiplier based on the H3 index of the pickup location.
     This is a placeholder; implement actual logic as per requirements.
     """
-
+    # Example logic: Increase surge in high-demand areas
+    high_demand_zones = {"8928308280fffff", "8928308283fffff"}  # Example H3 indices
+    if pickup_h3 in high_demand_zones:
+        return 1.5  # 50% surge
     return SURGE_MULTIPLIER
 
 
@@ -66,46 +69,39 @@ def get_time_of_day_multiplier(pickup_time: datetime) -> float:
     return 1.0  # Off-peak hours
 
 
+def calculate_h3_distance(pickup_h3: str, dropoff_h3: str) -> float:
+    """
+    Calculate the approximate distance between two H3 indices.
+    """
+    # Use the H3 distance function to get the number of hexagons between two indices
+    hex_distance = h3.h3_distance(pickup_h3, dropoff_h3)
+    # Convert hex distance to kilometers (approximate conversion factor)
+    return hex_distance * 0.15  # Assuming each hexagon is ~150m
+
+
 async def calculate_price(pricing_data: dict) -> float:
     """
     Calculate the price based on booking data.
     """
-    vehicle_type = pricing_data.get("vehicle_type")
-    pickup_lat = pricing_data.get("pickup_latitude")
-    pickup_lon = pricing_data.get("pickup_longitude")
-    dropoff_lat = pricing_data.get("dropoff_latitude")
-    dropoff_lon = pricing_data.get("dropoff_longitude")
-    scheduled_time = pricing_data.get("scheduled_time")
+    pricing_schema = PricingSchema(**pricing_data)
 
-    pickup_h3 = get_h3_index(pickup_lat, pickup_lon)
-    dropoff_h3 = get_h3_index(dropoff_lat, dropoff_lon)
+    pickup_lat = pricing_schema.pickup_latitude
+    pickup_lng = pricing_schema.pickup_longitude
+    dropoff_lat = pricing_schema.dropoff_latitude
+    dropoff_lng = pricing_schema.dropoff_longitude
+    vehicle_type = pricing_schema.vehicle_type
+    scheduled_time = pricing_schema.scheduled_time
 
-    # Create a unique cache key based on H3 indices and other pricing parameters
-    cache_key = (
-        f"price:{vehicle_type}:{pickup_h3}:{dropoff_h3}:{scheduled_time or 'now'}"
-    )
-    cached_price = await cache.get(cache_key)
-    if cached_price:
-        return float(cached_price)
+    # Calculate distance using H3
+    pickup_h3 = get_h3_index(pickup_lat, pickup_lng)
+    dropoff_h3 = get_h3_index(dropoff_lat, dropoff_lng)
+    distance = calculate_h3_distance(pickup_h3, dropoff_h3)
 
-    # Calculate distance using Haversine formula
-    distance_km = haversine(
-        pickup_lat,
-        pickup_lon,
-        dropoff_lat,
-        dropoff_lon,
-    )
+    # Base fare and cost per km
+    base_fare = BASE_FARE.get(vehicle_type, BASE_FARE["standard"])
+    cost_per_km = COST_PER_KM.get(vehicle_type, COST_PER_KM["standard"])
 
-    # Handle zero distance
-    if distance_km == 0:
-        raise ValueError("Pickup and dropoff locations cannot be the same.")
-
-    # Calculate base price
-    base_fare = BASE_FARE.get(vehicle_type, 5.0)
-    distance_cost = COST_PER_KM.get(vehicle_type, 1.5) * distance_km
-
-    # Total before multipliers
-    total = base_fare + distance_cost
+    total = base_fare + (cost_per_km * distance)
 
     # Apply surge multiplier based on pickup location's H3 index
     surge = get_surge_multiplier(pickup_h3)
@@ -127,6 +123,9 @@ async def calculate_price(pricing_data: dict) -> float:
     total = round(total, 2)
 
     # Cache the calculated price for future use
+    cache_key = (
+        f"price:{pickup_lat},{pickup_lng}:{dropoff_lat},{dropoff_lng}:{vehicle_type}"
+    )
     await cache.set(cache_key, total, expire=300)  # Cache for 5 minutes
 
     return total

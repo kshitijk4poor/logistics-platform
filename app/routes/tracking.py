@@ -1,11 +1,12 @@
 from typing import Dict, List, Union
 
 import h3
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordBearer, Security
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_driver, get_current_user
+from app.models import Driver, User
 from db.database import get_db
 
 router = APIRouter()
@@ -120,8 +121,8 @@ async def get_nearby_drivers(
         nearby_drivers = [
             {
                 "driver_id": id,
-                "location": info["h3_index"],
-                "vehicle_type": info["vehicle_type"],
+                "location": manager.driver_locations[id]["h3_index"],
+                "vehicle_type": manager.driver_locations[id]["vehicle_type"],
             }
             for id in manager.get_nearby_drivers(lat, lng, radius_km, vehicle_type)
         ]
@@ -129,8 +130,8 @@ async def get_nearby_drivers(
         nearby_drivers = [
             {
                 "driver_id": id,
-                "location": info["h3_index"],
-                "vehicle_type": info["vehicle_type"],
+                "location": manager.driver_locations[id]["h3_index"],
+                "vehicle_type": manager.driver_locations[id]["vehicle_type"],
             }
             for id in manager.get_nearby_drivers(lat, lng, radius_km, "all")
         ]
