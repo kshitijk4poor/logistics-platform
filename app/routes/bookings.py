@@ -6,8 +6,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies import cache, rate_limit
-from app.models import Booking
+from app.dependencies import cache, get_current_driver, get_current_user, rate_limit
+from app.models import Booking, Role, RoleEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.matching import assign_driver
 from app.services.pricing import calculate_price
@@ -21,6 +21,7 @@ router = APIRouter()
 async def create_booking(
     booking_data: BookingRequest,
     background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -45,7 +46,7 @@ async def create_booking(
 
         # Create booking
         booking = Booking(
-            user_id=booking_data.user_id,
+            user_id=current_user.id,  # Use the authenticated user's ID
             driver_id=driver.id,
             pickup_location=f"POINT({booking_data.pickup_longitude} {booking_data.pickup_latitude})",
             dropoff_location=f"POINT({booking_data.dropoff_longitude} {booking_data.dropoff_latitude})",
@@ -76,18 +77,34 @@ async def create_booking(
 
 
 @router.get("/booking/{booking_id}")
-async def get_booking(booking_id: int, db: AsyncSession = Depends(get_db)):
+async def get_booking(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     booking = await db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.user_id != current_user.id and current_user.role.name != RoleEnum.admin:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to view this booking"
+        )
     return booking
 
 
 @router.put("/booking/{booking_id}/cancel")
-async def cancel_booking(booking_id: int, db: AsyncSession = Depends(get_db)):
+async def cancel_booking(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     booking = await db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.user_id != current_user.id and current_user.role.name != RoleEnum.admin:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to cancel this booking"
+        )
     if booking.status == "completed":
         raise HTTPException(status_code=400, detail="Cannot cancel a completed booking")
 

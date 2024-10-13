@@ -5,6 +5,7 @@ import aioredis
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.dependencies import get_current_admin
 from app.schemas.analytics import AnalyticsResponse, PopularPickupLocation
 from db.database import get_db
 
@@ -18,8 +19,7 @@ async def get_redis_client():
 
 
 @router.get("/analytics", response_model=AnalyticsResponse)
-@rate_limit(max_calls=10, time_frame=3600)
-async def get_analytics(db: AsyncSession = Depends(get_db)):
+async def get_analytics(current_admin=Depends(get_current_admin)):
     """
     Fetches precomputed analytics data from Redis.
     If the data does not exist or cannot be read, it raises an HTTP 500 error.

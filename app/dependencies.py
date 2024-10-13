@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.models import Admin
+from app.models import Admin, Role, RoleEnum, User
 from db.database import get_db
 
 redis = aioredis.from_url(
@@ -45,7 +45,7 @@ class RateLimiter:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-async def get_current_admin(
+async def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ):
     credentials_exception = HTTPException(
@@ -62,10 +62,23 @@ async def get_current_admin(
             raise credentials_exception
     except JWTError:
         raise credentials_exception
-    admin = db.query(Admin).filter(Admin.username == username).first()
-    if admin is None:
+    user = db.query(User).filter(User.email == username).first()
+    if user is None:
         raise credentials_exception
-    return admin
+    return user
+
+
+def has_role(required_role: RoleEnum):
+    async def role_checker(current_user: User = Depends(get_current_user)):
+        if current_user.role.name != required_role:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return current_user
+
+    return role_checker
+
+
+get_current_admin = has_role(RoleEnum.admin)
+get_current_driver = has_role(RoleEnum.driver)
 
 
 def rate_limit(max_calls: int, time_frame: int):

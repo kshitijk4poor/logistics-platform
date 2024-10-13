@@ -4,10 +4,11 @@ from datetime import datetime, timedelta
 
 import aioredis
 from celery import Celery
-from sqlalchemy import func
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Booking, Driver, User
-from db.database import SessionLocal
+from db.database import SessionLocal, engine
 
 # Setup basic configuration for logging
 logging.basicConfig(
@@ -28,79 +29,79 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @app.task
 async def compute_analytics():
-    db = SessionLocal()
-    redis = await get_redis_client()
-    try:
-        logging.info("Starting computation of analytics")
-        now = datetime.now()
-        last_24_hours = now - timedelta(hours=24)
+    async with AsyncSession(engine) as db:
+        try:
+            logging.info("Starting computation of analytics")
+            now = datetime.now()
+            last_24_hours = now - timedelta(hours=24)
 
-        hourly_data = []
-        for hour in range(24):
-            start_time = last_24_hours + timedelta(hours=hour)
-            end_time = start_time + timedelta(hours=1)
+            hourly_data = []
+            for hour in range(24):
+                start_time = last_24_hours + timedelta(hours=hour)
+                end_time = start_time + timedelta(hours=1)
 
-            bookings_count = (
-                db.query(func.count(Booking.id))
-                .filter(Booking.date.between(start_time, end_time))
-                .scalar()
+                result = await db.execute(
+                    select(
+                        func.count(Booking.id).label("bookings_count"),
+                        func.sum(Booking.price).label("revenue"),
+                    ).where(Booking.date.between(start_time, end_time))
+                )
+                row = result.first()
+                hourly_data.append(
+                    {
+                        "hour": start_time.strftime("%Y-%m-%d %H:00"),
+                        "bookings": row.bookings_count or 0,
+                        "revenue": float(row.revenue) if row.revenue else 0,
+                    }
+                )
+
+            total_bookings = await db.scalar(
+                select(func.count(Booking.id)).where(Booking.date >= last_24_hours)
             )
-            revenue = (
-                db.query(func.sum(Booking.price))
-                .filter(Booking.date.between(start_time, end_time))
-                .scalar()
+            total_revenue = await db.scalar(
+                select(func.sum(Booking.price)).where(Booking.date >= last_24_hours)
+            )
+            avg_price = await db.scalar(
+                select(func.avg(Booking.price)).where(Booking.date >= last_24_hours)
+            )
+            active_drivers = await db.scalar(
+                select(func.count(Driver.id)).where(Driver.is_available == True)
+            )
+            new_users = await db.scalar(
+                select(func.count(User.id)).where(User.created_at >= last_24_hours)
             )
 
-            hourly_data.append(
-                {
-                    "hour": start_time.strftime("%Y-%m-%d %H:00"),
-                    "bookings": bookings_count,
-                    "revenue": float(revenue) if revenue else 0,
-                }
+            # Compute popular pickup locations
+            popular_locations_result = await db.execute(
+                select(Booking.pickup_location, func.count(Booking.id).label("count"))
+                .where(Booking.date >= last_24_hours)
+                .group_by(Booking.pickup_location)
+                .order_by(desc("count"))
+                .limit(5)
             )
+            popular_pickup_locations = [
+                {"pickup_location": row.pickup_location, "count": row.count}
+                for row in popular_locations_result
+            ]
 
-        total_bookings = (
-            db.query(func.count(Booking.id))
-            .filter(Booking.date >= last_24_hours)
-            .scalar()
-        )
-        total_revenue = (
-            db.query(func.sum(Booking.price))
-            .filter(Booking.date >= last_24_hours)
-            .scalar()
-        )
-        avg_price = (
-            db.query(func.avg(Booking.price))
-            .filter(Booking.date >= last_24_hours)
-            .scalar()
-        )
-        active_drivers = (
-            db.query(func.count(Driver.id)).filter(Driver.is_available == True).scalar()
-        )
-        new_users = (
-            db.query(func.count(User.id))
-            .filter(User.created_at >= last_24_hours)
-            .scalar()
-        )
+            analytics_data = {
+                "timestamp": now.isoformat(),
+                "total_bookings": total_bookings or 0,
+                "total_revenue": float(total_revenue) if total_revenue else 0,
+                "average_price": float(avg_price) if avg_price else 0,
+                "active_drivers": active_drivers or 0,
+                "new_users": new_users or 0,
+                "hourly_data": hourly_data,
+                "popular_pickup_locations": popular_pickup_locations,
+            }
 
-        analytics_data = {
-            "timestamp": now.isoformat(),
-            "total_bookings": total_bookings,
-            "total_revenue": float(total_revenue) if total_revenue else 0,
-            "average_price": float(avg_price) if avg_price else 0,
-            "active_drivers": active_drivers,
-            "new_users": new_users,
-            "hourly_data": hourly_data,
-        }
+            redis = await get_redis_client()
+            await redis.set(REDIS_KEY, json.dumps(analytics_data))
+            await redis.close()
 
-        # Store analytics data in Redis
-        await redis.set(REDIS_KEY, json.dumps(analytics_data))
-        logging.info("Analytics computed and stored successfully")
-        return "Analytics computed and stored successfully"
+            logging.info("Analytics computed and stored successfully")
+            return "Analytics computed and stored successfully"
 
-    except Exception as e:
-        logging.error(f"Error in compute_analytics: {e}")
-        raise
-    finally:
-        db.close()
-        await redis.close()
+        except Exception as e:
+            logging.error(f"Error in compute_analytics: {e}")
+            raise
