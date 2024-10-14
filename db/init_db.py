@@ -7,8 +7,9 @@ from .database import engine, SQLALCHEMY_DATABASE_URL
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 async def init_db():
-    
+
     try:
         if not database_exists(SQLALCHEMY_DATABASE_URL):
             create_database(SQLALCHEMY_DATABASE_URL)
@@ -22,6 +23,8 @@ async def init_db():
         logger.error(f"An error occurred while initializing the database: {e}")
         raise
 
+
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(init_db())

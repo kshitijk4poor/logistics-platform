@@ -19,16 +19,15 @@ SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSW
 engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=True)
 
 # Create asynchronous sessionmaker
-async_session = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Base class for models
 Base = declarative_base()
 
 # Configure logging
 logging.basicConfig()
-logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -8,9 +8,16 @@ from pydantic import BaseModel, Field
 class BookingStatus(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
-    in_progress = "in_progress"
-    completed = "completed"
+    en_route = "en_route"
+    goods_collected = "goods_collected"
+    delivered = "delivered"
     cancelled = "cancelled"
+    completed = "completed"
+
+
+class StatusUpdate(BaseModel):
+    status: BookingStatus
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class BookingResponse(BaseModel):
@@ -29,6 +36,9 @@ class BookingResponse(BaseModel):
     price: float = Field(..., description="Calculated price for the booking.")
     date: datetime = Field(..., description="Date and time of the booking.")
     status: BookingStatus = Field(..., description="Current status of the booking.")
+    status_history: List[StatusUpdate] = Field(
+        default_factory=list, description="History of status updates."
+    )
 
 
 class BookingRequest(BaseModel):

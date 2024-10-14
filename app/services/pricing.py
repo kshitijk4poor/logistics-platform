@@ -28,25 +28,6 @@ def get_h3_index(lat: float, lon: float) -> str:
     return h3.geo_to_h3(lat, lon, H3_RESOLUTION)
 
 
-def haversine(lat1, lon1, lat2, lon2):
-    """
-    Calculate the great-circle distance between two points on the Earth specified in decimal degrees.
-    """
-    R = 6371  # Radius of Earth in kilometers
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-    delta_phi = math.radians(lat2 - lat1)
-    delta_lambda = math.radians(lon2 - lon1)
-
-    a = (
-        math.sin(delta_phi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
-    )
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    return R * c  # Distance in kilometers
-
-
 def get_surge_multiplier(pickup_h3: str) -> float:
     """
     Determine surge multiplier based on the H3 index of the pickup location.

@@ -10,6 +10,30 @@ services:
       - postgres
       - redis
       - kafka
+      - celery_worker
+      - celery_beat
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/logistics
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_URL=kafka:9092
+
+  celery_worker:
+    build: .
+    command: celery -A app.tasks worker --loglevel=info
+    depends_on:
+      - redis
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/logistics
+      - REDIS_URL=redis://redis:6379/0
+      - KAFKA_URL=kafka:9092
+
+  celery_beat:
+    build: .
+    command: celery -A app.tasks beat --loglevel=info
+    depends_on:
+      - redis
+      - postgres
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/logistics
       - REDIS_URL=redis://redis:6379/0

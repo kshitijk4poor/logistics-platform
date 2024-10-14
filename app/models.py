@@ -2,6 +2,7 @@ from enum import Enum as PyEnum
 
 from geoalchemy2 import Geometry
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
@@ -26,6 +27,9 @@ class VehicleTypeEnum(str, Enum):
 class BookingStatusEnum(str, Enum):
     pending = "pending"
     confirmed = "confirmed"
+    en_route = "en_route"
+    goods_collected = "goods_collected"
+    delivered = "delivered"
     cancelled = "cancelled"
     completed = "completed"
 
@@ -36,7 +40,7 @@ class RoleEnum(str, PyEnum):
     driver = "driver"
 
 
-# for RBAC
+# For RBAC
 class Role(Base):
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
@@ -73,18 +77,25 @@ class Driver(Base):
     is_available = Column(Boolean, default=True)
     role_id = Column(Integer, ForeignKey("roles.id"))
     role = relationship("Role")
+    bookings = relationship("Booking", back_populates="driver")
 
 
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    driver_id = Column(Integer, ForeignKey("drivers.id"))
+    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
     pickup_location = Column(Geometry("POINT"))
     dropoff_location = Column(Geometry("POINT"))
     vehicle_type = Column(Enum(VehicleTypeEnum))
     price = Column(Float)
     date = Column(DateTime, nullable=False)
-    status = Column(Enum(BookingStatusEnum), nullable=False)
+    status = Column(
+        Enum(BookingStatusEnum), nullable=False, default=BookingStatusEnum.pending
+    )
+    status_history = Column(
+        JSON, default=list
+    )  # List of status updates with timestamps
+
     user = relationship("User", back_populates="bookings")
-    driver = relationship("Driver")
+    driver = relationship("Driver", back_populates="bookings")

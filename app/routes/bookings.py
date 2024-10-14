@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.dependencies import cache, get_current_driver, get_current_user, rate_limit
-from app.models import Booking, Driver, Role, RoleEnum, User
+from app.models import Booking, BookingStatusEnum, Driver, Role, RoleEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.matching import assign_driver
+from app.services.notification import notify_nearby_drivers
 from app.services.pricing import calculate_price
 from db.database import get_db
 
@@ -42,21 +43,25 @@ async def create_booking(
 
         price = await calculate_price(booking_data.dict())
 
-        driver = await assign_driver(booking_data, db)
+        # Assign driver but allow manual acceptance
+        assigned_driver = await assign_driver(booking_data, db)
 
-        if not driver:
+        if not assigned_driver:
             raise HTTPException(status_code=404, detail="No available drivers found")
 
         # Create booking
         booking = Booking(
             user_id=current_user.id,  # Use the authenticated user's ID
-            driver_id=driver.id,
+            driver_id=assigned_driver.id,
             pickup_location=f"POINT({booking_data.pickup_longitude} {booking_data.pickup_latitude})",
             dropoff_location=f"POINT({booking_data.dropoff_longitude} {booking_data.dropoff_latitude})",
             vehicle_type=booking_data.vehicle_type,
             price=price,
-            date=booking_data.scheduled_time or datetime.now(),
-            status="pending",
+            date=booking_data.scheduled_time or datetime.utcnow(),
+            status=BookingStatusEnum.pending,
+            status_history=[
+                {"status": BookingStatusEnum.pending, "timestamp": datetime.utcnow()}
+            ],
         )
 
         db.add(booking)
@@ -67,11 +72,10 @@ async def create_booking(
             cache_key, {"id": booking.id, "price": price}, expire=300
         )  # Cache for 5 minutes
 
-        background_tasks.add_task(notify_driver, driver.id, booking.id)
-        background_tasks.add_task(update_analytics, booking.id, db)
+        background_tasks.add_task(notify_nearby_drivers, booking.id, db)
 
         return JSONResponse(
-            content={"booking_id": booking.id, "price": price, "status": "confirmed"}
+            content={"booking_id": booking.id, "price": price, "status": "pending"}
         )
 
     except Exception as e:

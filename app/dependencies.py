@@ -6,14 +6,24 @@ import aioredis
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from pydantic import BaseSettings
 from sqlalchemy.orm import Session
 
-from app.models import Admin, Role, RoleEnum, User
+from app.models import Admin, Driver, Role, RoleEnum, User
 from db.database import get_db
 
 redis = aioredis.from_url(
     "redis://localhost", decode_responses=True, max_connections=10
 )
+
+
+class Settings(BaseSettings):
+    SECRET_KEY: str = "your_secret_key"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+
+settings = Settings()
 
 
 class Cache:
@@ -68,7 +78,7 @@ async def get_current_user(
     return user
 
 
-def has_role(required_role: RoleEnum):
+async def has_role(required_role: RoleEnum):
     async def role_checker(current_user: User = Depends(get_current_user)):
         if current_user.role.name != required_role:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
@@ -79,6 +89,29 @@ def has_role(required_role: RoleEnum):
 
 get_current_admin = has_role(RoleEnum.admin)
 get_current_driver = has_role(RoleEnum.driver)
+
+
+async def get_current_driver_object(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        user_id: int = payload.get("user_id")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    driver = db.query(Driver).filter(Driver.id == user_id).first()
+    if driver is None:
+        raise credentials_exception
+    return driver
 
 
 def rate_limit(max_calls: int, time_frame: int):
