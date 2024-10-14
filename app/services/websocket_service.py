@@ -1,9 +1,11 @@
 import json
 import time
+import asyncio
 from typing import Dict
 
 import aioredis
-from fastapi import Depends, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket
+import h3
 
 from .tracking import REDIS_URL
 
@@ -12,12 +14,25 @@ class ConnectionManager:
     def __init__(self):
         self.active_drivers: Dict[str, WebSocket] = {}
         self.active_users: Dict[str, WebSocket] = {}
+        self.h3_resolution = 9
+        self.h3_ring_distance = 0.1
+        self.h3_index_to_drivers = {}
+        self.driver_locations = {}
+        self.location_update_queue = []
+        self.batch_size = 50
+        self.batch_update_interval = 5  # seconds
 
     async def connect_driver(self, driver_id: str, websocket: WebSocket):
         await websocket.accept()
         self.active_drivers[driver_id] = websocket
 
     async def disconnect_driver(self, driver_id: str):
+        if driver_id in self.driver_locations:
+            h3_index = self.driver_locations[driver_id]["h3_index"]
+            self.h3_index_to_drivers[h3_index].remove(driver_id)
+            if not self.h3_index_to_drivers[h3_index]:
+                del self.h3_index_to_drivers[h3_index]
+            del self.driver_locations[driver_id]
         self.active_drivers.pop(driver_id, None)
 
     async def connect_user(self, user_id: str, websocket: WebSocket):
@@ -38,8 +53,56 @@ class ConnectionManager:
         if driver_id in self.active_drivers:
             await self.active_drivers[driver_id].send_text(message)
 
+    async def update_driver_location(self, driver_id: str, lat: float, lng: float, vehicle_type: str, is_available: bool):
+        self.location_update_queue.append({
+            'driver_id': driver_id,
+            'latitude': lat,
+            'longitude': lng,
+            'vehicle_type': vehicle_type,
+            'is_available': is_available
+        })
+        
+        if len(self.location_update_queue) >= self.batch_size:
+            await self.process_batch_updates()
+
+    async def process_batch_updates(self):
+        if not self.location_update_queue:
+            return
+
+        updates_to_process = self.location_update_queue[:self.batch_size]
+        self.location_update_queue = self.location_update_queue[self.batch_size:]
+
+        await update_driver_locations(updates_to_process)
+
+        for update in updates_to_process:
+            driver_id = update['driver_id']
+            new_h3_index = h3.geo_to_h3(update['latitude'], update['longitude'], self.h3_resolution)
+            
+            old_h3_index = self.driver_locations.get(driver_id, {}).get('h3_index')
+            if old_h3_index and old_h3_index != new_h3_index:
+                self.h3_index_to_drivers[old_h3_index].remove(driver_id)
+                if not self.h3_index_to_drivers[old_h3_index]:
+                    del self.h3_index_to_drivers[old_h3_index]
+
+            if new_h3_index not in self.h3_index_to_drivers:
+                self.h3_index_to_drivers[new_h3_index] = set()
+            self.h3_index_to_drivers[new_h3_index].add(driver_id)
+
+            self.driver_locations[driver_id] = {
+                'h3_index': new_h3_index,
+                'vehicle_type': update['vehicle_type'],
+                'is_available': update['is_available']
+            }
+
+    async def start_batch_processing(self):
+        while True:
+            await asyncio.sleep(self.batch_update_interval)
+            await self.process_batch_updates()
 
 manager = ConnectionManager()
+
+# Start the batch processing task
+asyncio.create_task(manager.start_batch_processing())
 
 
 async def get_redis_connection():

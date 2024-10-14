@@ -1,9 +1,6 @@
-from typing import List
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
-from app.models import Booking, BookingStatusEnum, Driver
+from app.models import Booking
 from app.routes.tracking import manager
 
 

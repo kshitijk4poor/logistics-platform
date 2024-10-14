@@ -1,5 +1,4 @@
 import json
-import time
 from functools import wraps
 
 import aioredis
@@ -9,7 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseSettings
 from sqlalchemy.orm import Session
 
-from app.models import Admin, Driver, Role, RoleEnum, User
+from app.models import Driver, RoleEnum, User
 from db.database import get_db
 
 redis = aioredis.from_url(

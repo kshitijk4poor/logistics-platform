@@ -8,7 +8,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Booking, BookingStatusEnum, Driver, User
-from db.database import SessionLocal, engine
+from db.database import engine
 
 # Setup basic configuration for logging
 logging.basicConfig(
