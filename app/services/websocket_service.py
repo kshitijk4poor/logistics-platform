@@ -34,6 +34,10 @@ class ConnectionManager:
         for connection in self.active_users.values():
             await connection.send_text(message)
 
+    async def send_message_to_driver(self, driver_id: str, message: str):
+        if driver_id in self.active_drivers:
+            await self.active_drivers[driver_id].send_text(message)
+
 
 manager = ConnectionManager()
 
@@ -42,7 +46,9 @@ async def get_redis_connection():
     return await aioredis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 
 
-async def publish_location(driver_id: int, latitude: float, longitude: float):
+async def publish_location(
+    driver_id: int, latitude: float, longitude: float, assignment: Dict = None
+):
     redis = await get_redis_connection()
     location_data = json.dumps(
         {
@@ -53,3 +59,8 @@ async def publish_location(driver_id: int, latitude: float, longitude: float):
         }
     )
     await redis.publish("driver_locations", location_data)
+
+    # Send assignment notification to driver if provided
+    if assignment:
+        assignment_message = json.dumps({"type": "assignment", "data": assignment})
+        await manager.send_message_to_driver(str(driver_id), assignment_message)

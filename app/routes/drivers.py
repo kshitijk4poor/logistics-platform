@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from fastapi import (
@@ -9,6 +10,7 @@ from fastapi import (
     WebSocketDisconnect,
     status,
 )
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -76,38 +78,54 @@ async def update_job_status(
     current_driver: Driver = Depends(get_current_driver),
     background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
-    booking = result.scalar_one_or_none()
+    async with db.begin():
+        try:
+            result = await db.execute(select(Booking).where(Booking.id == booking_id))
+            booking = result.scalar_one_or_none()
 
-    if not booking or booking.driver_id != current_driver.id:
-        raise HTTPException(status_code=400, detail="Invalid booking")
+            if not booking or booking.driver_id != current_driver.id:
+                raise HTTPException(status_code=400, detail="Invalid booking")
 
-    if not is_valid_status_transition(booking.status, status_update.status):
-        raise HTTPException(status_code=400, detail="Invalid status transition")
+            if not is_valid_status_transition(booking.status, status_update.status):
+                raise HTTPException(status_code=400, detail="Invalid status transition")
 
-    booking.status = status_update.status
-    booking.status_history.append(
-        {"status": status_update.status, "timestamp": datetime.utcnow()}
-    )
-    await db.commit()
-    await db.refresh(booking)
+            booking.status = status_update.status
+            booking.status_history.append(
+                {"status": status_update.status, "timestamp": datetime.utcnow()}
+            )
 
-    await notify_user(
-        booking.user_id,
-        f"Your booking {booking_id} status has been updated to {status_update.status}",
-    )
+            await db.flush()
 
-    if status_update.status in [
-        BookingStatusEnum.completed,
-        BookingStatusEnum.cancelled,
-    ]:
-        current_driver.is_available = True
-        await db.commit()
-        await clear_driver_assignment(current_driver.id, booking_id)
-        background_tasks.add_task(handle_booking_completion, booking_id)
-        background_tasks.add_task(update_analytics, booking_id)
+            await notify_user(
+                booking.user_id,
+                f"Your booking {booking_id} status has been updated to {status_update.status}",
+            )
 
-    return {"detail": f"Booking status updated to {status_update.status}"}
+            if status_update.status in [
+                BookingStatusEnum.completed,
+                BookingStatusEnum.cancelled,
+            ]:
+                current_driver.is_available = True
+                await db.flush()
+                await clear_driver_assignment(current_driver.id, booking_id)
+                background_tasks.add_task(handle_booking_completion, booking_id)
+                background_tasks.add_task(update_analytics, booking_id)
+
+            logging.info(
+                f"Booking {booking_id} status updated to {status_update.status}"
+            )
+            return {"detail": f"Booking status updated to {status_update.status}"}
+
+        except SQLAlchemyError as e:
+            logging.error(
+                f"Database error while updating booking {booking_id}: {str(e)}"
+            )
+            raise HTTPException(status_code=500, detail="Database error occurred")
+        except Exception as e:
+            logging.error(
+                f"Unexpected error while updating booking {booking_id}: {str(e)}"
+            )
+            raise HTTPException(status_code=500, detail="An unexpected error occurred")
 
 
 @router.post("/update_location", status_code=status.HTTP_200_OK)
