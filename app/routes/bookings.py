@@ -74,6 +74,8 @@ async def create_booking(
 
         background_tasks.add_task(notify_nearby_drivers, booking.id, db)
 
+        background_tasks.add_task(compute_analytics.delay)
+
         return JSONResponse(
             content={"booking_id": booking.id, "price": price, "status": "pending"}
         )

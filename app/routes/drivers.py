@@ -16,7 +16,7 @@ from sqlalchemy.future import select
 
 from app.dependencies import get_current_driver, get_db
 from app.models import Booking, BookingStatusEnum, Driver
-from app.schemas.booking import BookingStatus, StatusUpdateRequest
+from app.schemas.booking import StatusUpdateRequest
 from app.schemas.driver import AcceptBookingResponse, LocationUpdate
 from app.services.notification import notify_user
 from app.services.tracking import (
@@ -26,7 +26,7 @@ from app.services.tracking import (
     update_driver_location,
 )
 from app.services.websocket_service import manager
-from app.tasks import handle_booking_completion, update_analytics
+from app.tasks import compute_analytics, handle_booking_completion, update_analytics
 
 router = APIRouter(prefix="/driver", tags=["drivers"])
 
@@ -114,6 +114,7 @@ async def update_job_status(
             logging.info(
                 f"Booking {booking_id} status updated to {status_update.status}"
             )
+            background_tasks.add_task(compute_analytics.delay)
             return {"detail": f"Booking status updated to {status_update.status}"}
 
         except SQLAlchemyError as e:
