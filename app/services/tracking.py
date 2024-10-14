@@ -98,3 +98,21 @@ async def get_booking_status(booking_id: int):
     if not status:
         raise HTTPException(status_code=404, detail="Booking status not found")
     return status
+
+
+async def get_redis_connection():
+    return await aioredis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
+
+
+async def publish_location(driver_id: str, latitude: float, longitude: float):
+    redis = await get_redis_connection()
+    location_data = json.dumps(
+        {
+            "driver_id": driver_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "timestamp": int(time.time()),
+        }
+    )
+    await redis.publish("driver_locations", location_data)
+    await redis.close()

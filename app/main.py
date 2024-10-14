@@ -7,8 +7,10 @@ from app.routes import (
     drivers,
     pricing,
     tracking,
+    users,
     websockets,
 )
+from app.services.websocket_service import manager
 
 app = FastAPI()
 
@@ -19,6 +21,7 @@ app.include_router(pricing.router, prefix="/api/v1", tags=["pricing"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(drivers.router, prefix="/api/v1", tags=["drivers"])
 app.include_router(websockets.router, prefix="/api/v1", tags=["websockets"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
 
 
 @app.get("/")

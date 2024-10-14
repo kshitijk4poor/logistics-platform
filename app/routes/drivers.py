@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -12,8 +20,10 @@ from app.services.notification import notify_user
 from app.services.tracking import (
     assign_driver_to_booking,
     clear_driver_assignment,
+    publish_location,
     update_driver_location,
 )
+from app.services.websocket_service import manager
 from app.tasks import handle_booking_completion, update_analytics
 
 router = APIRouter(prefix="/driver", tags=["drivers"])
@@ -130,3 +140,26 @@ def is_valid_status_transition(
         BookingStatusEnum.delivered: [BookingStatusEnum.completed],
     }
     return new_status in valid_transitions.get(current_status, [])
+
+
+@router.websocket("/ws/drivers")
+async def websocket_drivers(
+    websocket: WebSocket, current_driver=Depends(get_current_driver)
+):
+    driver_id = str(current_driver.id)
+    await manager.connect_driver(driver_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            latitude = data.get("latitude")
+            longitude = data.get("longitude")
+            if latitude is None or longitude is None:
+                await manager.send_personal_message("Invalid data format.", websocket)
+                continue
+            # Publish location to Redis
+            await publish_location(driver_id, latitude, longitude)
+    except WebSocketDisconnect:
+        await manager.disconnect_driver(driver_id)
+    except Exception as e:
+        await manager.send_personal_message(f"Error: {str(e)}", websocket)
+        await manager.disconnect_driver(driver_id)

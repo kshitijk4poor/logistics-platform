@@ -1,5 +1,6 @@
 import json
-from typing import List
+import time
+from typing import Dict
 
 import aioredis
 from fastapi import Depends, WebSocket, WebSocketDisconnect
@@ -9,20 +10,28 @@ from .tracking import REDIS_URL
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_drivers: Dict[str, WebSocket] = {}
+        self.active_users: Dict[str, WebSocket] = {}
 
-    async def connect(self, websocket: WebSocket):
+    async def connect_driver(self, driver_id: str, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections.append(websocket)
+        self.active_drivers[driver_id] = websocket
 
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    async def disconnect_driver(self, driver_id: str):
+        self.active_drivers.pop(driver_id, None)
+
+    async def connect_user(self, user_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_users[user_id] = websocket
+
+    async def disconnect_user(self, user_id: str):
+        self.active_users.pop(user_id, None)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)
 
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
+    async def broadcast_to_users(self, message: str):
+        for connection in self.active_users.values():
             await connection.send_text(message)
 
 

@@ -1,5 +1,7 @@
 from datetime import datetime
+from typing import Optional
 
+import h3
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
