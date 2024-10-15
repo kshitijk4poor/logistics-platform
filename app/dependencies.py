@@ -13,15 +13,21 @@ from jose import JWTError, jwt
 from pydantic import BaseSettings
 from sqlalchemy.orm import Session
 
+from .config import settings
+
 redis = aioredis.from_url(
     "redis://localhost", decode_responses=True, max_connections=10
 )
 
 
 class Settings(BaseSettings):
-    SECRET_KEY: str = "your_secret_key"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    GOOGLE_MAPS_API_KEY: str
+
+    class Config:
+        env_file = ".env"
 
 
 settings = Settings()

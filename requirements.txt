@@ -1,3 +1,4 @@
+alembic
 fastapi
 uvicorn
 sqlalchemy
@@ -12,3 +13,5 @@ python-jose
 websockets
 pytest
 httpx
+prometheus-fastapi-instrumentator
+passlib[bcrypt]

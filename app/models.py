@@ -1,3 +1,4 @@
+from datetime import datetime
 from enum import Enum as PyEnum
 
 from geoalchemy2 import Geometry
@@ -64,6 +65,7 @@ class User(Base):
     )
     role_id = Column(Integer, ForeignKey("roles.id"))
     role = relationship("Role")
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 class Driver(Base):
