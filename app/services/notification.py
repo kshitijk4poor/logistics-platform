@@ -1,16 +1,19 @@
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
+from geoalchemy2.shape import to_shape
 
 from app.models import Booking
 from app.routes.tracking import manager
 
-
 async def notify_nearby_drivers(booking_id: int, db: AsyncSession):
-    # Fetch the booking details
     booking = await db.get(Booking, booking_id)
     if not booking:
         return
 
-    pickup_lat, pickup_lng = parse_point(booking.pickup_location)
+    # Extract latitude and longitude from the Geometry object
+    point = to_shape(booking.pickup_location)
+    pickup_lat, pickup_lng = point.y, point.x
+
     vehicle_type = booking.vehicle_type
 
     # Find nearby drivers using H3
@@ -23,11 +26,17 @@ async def notify_nearby_drivers(booking_id: int, db: AsyncSession):
         await manager.send_booking_assignment(driver_id, booking)
 
 
-def parse_point(point_str: str):
-    try:
-        _, coords = point_str.split("(")
-        coords = coords.strip(")")
-        lng, lat = map(float, coords.split())
-        return lat, lng
-    except Exception:
-        return 0.0, 0.0
+async def notify_driver_assignment(driver_id: int, booking_id: int):
+    """
+    Notify the driver about the new booking assignment via WebSocket.
+    """
+    message = json.dumps({
+        "type": "assignment",
+        "data": {
+            "booking_id": booking_id,
+            "message": "You have been assigned a new booking.",
+            },
+        }
+    )
+
+    await manager.send_message_to_driver(str(driver_id), message)

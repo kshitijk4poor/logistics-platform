@@ -1,7 +1,7 @@
 import asyncio
 import json
 import time
-from typing import Dict
+from typing import Dict, Set, List
 
 import aioredis
 import h3
@@ -12,35 +12,29 @@ from .tracking import REDIS_URL, update_driver_locations
 
 class ConnectionManager:
     def __init__(self):
-        self.active_drivers: Dict[str, WebSocket] = {}
         self.active_users: Dict[str, WebSocket] = {}
+        self.active_drivers: Dict[str, WebSocket] = {}
+        self.location_update_queue: List[Dict] = []
+        self.batch_size = 10
         self.h3_resolution = 9
-        self.h3_ring_distance = 0.1
-        self.h3_index_to_drivers = {}
-        self.driver_locations = {}
-        self.location_update_queue = []
-        self.batch_size = 50
+        self.h3_ring_distance = 1
+        self.h3_index_to_drivers: Dict[str, Set[str]] = {}
+        self.driver_locations: Dict[str, Dict] = {}
         self.batch_update_interval = 5  # seconds
-
-    async def connect_driver(self, driver_id: str, websocket: WebSocket):
-        await websocket.accept()
-        self.active_drivers[driver_id] = websocket
-
-    async def disconnect_driver(self, driver_id: str):
-        if driver_id in self.driver_locations:
-            h3_index = self.driver_locations[driver_id]["h3_index"]
-            self.h3_index_to_drivers[h3_index].remove(driver_id)
-            if not self.h3_index_to_drivers[h3_index]:
-                del self.h3_index_to_drivers[h3_index]
-            del self.driver_locations[driver_id]
-        self.active_drivers.pop(driver_id, None)
 
     async def connect_user(self, user_id: str, websocket: WebSocket):
         await websocket.accept()
         self.active_users[user_id] = websocket
 
+    async def connect_driver(self, driver_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_drivers[driver_id] = websocket
+
     async def disconnect_user(self, user_id: str):
         self.active_users.pop(user_id, None)
+
+    async def disconnect_driver(self, driver_id: str):
+        self.active_drivers.pop(driver_id, None)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)

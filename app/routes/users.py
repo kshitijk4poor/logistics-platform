@@ -1,5 +1,3 @@
-import asyncio
-
 import aioredis
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 

@@ -9,7 +9,6 @@ from app.services.pricing import get_h3_index
 from app.services.tracking import (
     assign_driver_to_booking,
     get_redis,
-    update_driver_location,
 )
 
 

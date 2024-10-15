@@ -1,11 +1,10 @@
-from datetime import datetime
 from typing import Optional
 
 import h3
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models import Booking, BookingStatusEnum, Driver
+from app.models import Driver
 from app.schemas.booking import BookingRequest
 from app.services.pricing import get_h3_index
 

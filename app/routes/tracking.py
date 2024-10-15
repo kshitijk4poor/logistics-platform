@@ -1,15 +1,20 @@
 import h3
+import logging
 from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
+from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.dependencies import get_current_driver, get_current_user
 from app.models import Driver, User
 from app.services.websocket_service import ConnectionManager
+from app.services.tracking import publish_location, verify_token
 from db.database import get_db
 
 router = APIRouter()
 
 manager = ConnectionManager()
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @router.websocket("/ws/{driver_id}")
@@ -31,19 +36,28 @@ async def websocket_endpoint(
         while True:
             try:
                 data = await websocket.receive_json()
-                lat = data.get("latitude")
-                lng = data.get("longitude")
-                vehicle_type = data.get("vehicle_type")
-                is_available = data.get("is_available")
-                if not all([lat, lng, vehicle_type, is_available]):
-                    await websocket.send_text("Invalid data format.")
-                    continue
-                await manager.update_driver_location(
-                    driver_id, lat, lng, vehicle_type, is_available
-                )
+                # Handle different types of messages
+                if data.get("type") == "acknowledgment":
+                    booking_id = data.get("booking_id")
+                    status = data.get("status")
+                    # Process acknowledgment (e.g., update booking status)
+                    logging.info(f"Driver {driver_id} acknowledged booking {booking_id} with status {status}")
+                    # You can add logic here to update the booking status in the database
+                else:
+                    # Existing location update handling
+                    latitude = data.get("latitude")
+                    longitude = data.get("longitude")
+                    if latitude is None or longitude is None:
+                        await manager.send_personal_message("Invalid data format.", websocket)
+                        continue
+                    # Publish location to Redis
+                    await publish_location(driver_id, latitude, longitude)
             except Exception as e:
                 await websocket.send_text(f"Error processing data: {e}")
     except WebSocketDisconnect:
+        await manager.disconnect_driver(driver_id)
+    except Exception as e:
+        await manager.send_personal_message(f"Error: {str(e)}", websocket)
         await manager.disconnect_driver(driver_id)
 
 
@@ -86,3 +100,9 @@ async def get_nearby_drivers(
             current_radius *= 2  # Double the radius for the next iteration
 
     return {"nearby_drivers": nearby_drivers, "search_radius_km": current_radius}
+
+
+async def get_current_user_object(
+    token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
+):
+    return await get_current_user(token, db)

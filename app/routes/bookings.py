@@ -1,19 +1,18 @@
 import logging
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.dependencies import cache, get_current_driver, get_current_user, rate_limit
-from app.models import Booking, BookingStatusEnum, Driver, Role, RoleEnum, User
+from app.dependencies import cache, get_current_user, rate_limit
+from app.models import Booking, BookingStatusEnum, Driver, RoleEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.matching import assign_driver
-from app.services.notification import notify_nearby_drivers
+from app.services.notification import notify_nearby_drivers, notify_driver_assignment
+from app.services.validation import validate_booking
 from app.services.pricing import calculate_price
 from app.tasks import compute_analytics
 from db.database import get_db
@@ -42,13 +41,17 @@ async def create_booking(
                 }
             )
 
+        # Calculate price
         price = await calculate_price(booking_data.dict())
 
         # Assign driver but allow manual acceptance
         assigned_driver = await assign_driver(booking_data, db)
-
         if not assigned_driver:
             raise HTTPException(status_code=404, detail="No available drivers found")
+
+        # Validate booking time against driver's schedule and maintenance
+        scheduled_time = booking_data.scheduled_time or datetime.utcnow()
+        await validate_booking(db, assigned_driver.vehicle.id, scheduled_time)
 
         # Create booking
         booking = Booking(
@@ -58,7 +61,7 @@ async def create_booking(
             dropoff_location=f"POINT({booking_data.dropoff_longitude} {booking_data.dropoff_latitude})",
             vehicle_type=booking_data.vehicle_type,
             price=price,
-            date=booking_data.scheduled_time or datetime.utcnow(),
+            date=scheduled_time,
             status=BookingStatusEnum.pending,
             status_history=[
                 {"status": BookingStatusEnum.pending, "timestamp": datetime.utcnow()}
@@ -73,14 +76,20 @@ async def create_booking(
             cache_key, {"id": booking.id, "price": price}, expire=300
         )  # Cache for 5 minutes
 
+        # Notify nearby drivers
         background_tasks.add_task(notify_nearby_drivers, booking.id, db)
-
+        # Trigger analytics computation
         background_tasks.add_task(compute_analytics.delay)
+
+        # Notify the assigned driver about the new booking
+        background_tasks.add_task(notify_driver_assignment, assigned_driver.id, booking.id)
 
         return JSONResponse(
             content={"booking_id": booking.id, "price": price, "status": "pending"}
         )
 
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

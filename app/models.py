@@ -80,6 +80,20 @@ class Driver(Base):
     bookings = relationship("Booking", back_populates="driver")
 
 
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_type = Column(Enum(VehicleTypeEnum), nullable=False, index=True)
+    make = Column(String, nullable=False)
+    model = Column(String, nullable=False)
+    year = Column(Integer, nullable=False)
+    license_plate = Column(String, nullable=False, unique=True, index=True)
+    capacity = Column(Integer, nullable=False)
+    status = Column(String, default="available")
+    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    driver = relationship("Driver")
+
+
 class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True, index=True)
@@ -99,3 +113,14 @@ class Booking(Base):
 
     user = relationship("User", back_populates="bookings")
     driver = relationship("Driver", back_populates="bookings")
+
+
+class MaintenancePeriod(Base):
+    __tablename__ = "maintenance_periods"
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    reason = Column(String, nullable=True)
+
+    vehicle = relationship("Vehicle")

@@ -41,3 +41,22 @@ async def websocket_users(websocket: WebSocket, user=Depends(get_current_user)):
     finally:
         await pubsub.unsubscribe("driver_locations")
         await pubsub.close()
+
+
+@router.websocket("/ws/drivers/batch")
+async def websocket_drivers_batch(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            if isinstance(data, list):
+                for location in data:
+                    driver_id = location.get("driver_id")
+                    latitude = location.get("latitude")
+                    longitude = location.get("longitude")
+                    if driver_id and latitude and longitude:
+                        await publish_location(driver_id, latitude, longitude)
+            else:
+                await websocket.send_text("Invalid data format. Expected a list of location updates.")
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)

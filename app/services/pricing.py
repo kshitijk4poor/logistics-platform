@@ -7,7 +7,6 @@ import httpx
 
 from app.dependencies import cache
 from app.schemas.pricing import PricingSchema
-from app.schemas.vehicles import VehicleTypeEnum
 
 # Configuration for pricing factors based on vehicle types
 BASE_FARE = {"refrigerated_truck": 15.0, "van": 10.0, "truck": 12.5}

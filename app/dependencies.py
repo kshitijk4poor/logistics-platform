@@ -1,5 +1,8 @@
 import json
 from functools import wraps
+from fastapi import HTTPException, Request, status
+import time
+from datetime import datetime, timedelta
 
 import aioredis
 from fastapi import Depends, HTTPException, status
@@ -115,21 +118,37 @@ async def get_current_admin(
     return user
 
 
-def rate_limit(max_calls: int, time_frame: int):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            request = kwargs.get("request") or args[0]
-            client_ip = request.client.host
-            key = f"rate_limit:{func.__name__}:{client_ip}"
+class SlidingWindowRateLimiter:
+    def __init__(self, max_requests, window_size):
+        self.max_requests = max_requests
+        self.window_size = window_size
+        self.requests = []
 
-            rate_limiter = RateLimiter(redis)
+    async def is_rate_limited(self, key):
+        current_time = time.time()
+        self.requests = [req for req in self.requests if current_time - req < self.window_size]
+        if len(self.requests) >= self.max_requests:
+            return True
+        self.requests.append(current_time)
+        return False
 
-            if await rate_limiter.is_rate_limited(key, max_calls, time_frame):
-                raise HTTPException(status_code=429, detail="Rate limit exceeded")
+rate_limiter = SlidingWindowRateLimiter(max_requests=100, window_size=60)
 
-            return await func(*args, **kwargs)
+def rate_limit():
+    async def wrapper(request: Request):
+        client_ip = request.client.host
+        if await rate_limiter.is_rate_limited(client_ip):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    return wrapper
 
-        return wrapper
 
-    return decorator
+SECRET_KEY = "your-secret-key"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt

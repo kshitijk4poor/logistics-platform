@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_admin
 from app.schemas.analytics import AnalyticsResponse, PopularPickupLocation
-from db.database import get_db
 
 router = APIRouter()
 
