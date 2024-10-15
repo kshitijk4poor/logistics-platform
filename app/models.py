@@ -9,8 +9,10 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
+    Version,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -98,21 +100,29 @@ class Booking(Base):
     __tablename__ = "bookings"
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True)
+    driver_id = Column(Integer, ForeignKey("drivers.id"), nullable=True, index=True)
     pickup_location = Column(Geometry("POINT"))
     dropoff_location = Column(Geometry("POINT"))
     vehicle_type = Column(Enum(VehicleTypeEnum))
     price = Column(Float)
     date = Column(DateTime, nullable=False)
     status = Column(
-        Enum(BookingStatusEnum), nullable=False, default=BookingStatusEnum.pending
+        Enum(BookingStatusEnum),
+        nullable=False,
+        default=BookingStatusEnum.pending,
+        index=True,
     )
-    status_history = Column(
-        JSON, default=list
-    )  # List of status updates with timestamps
-
+    status_history = Column(JSON, default=list)
+    scheduled_time = Column(DateTime, nullable=True)
     user = relationship("User", back_populates="bookings")
     driver = relationship("Driver", back_populates="bookings")
+    version = Column(Integer, nullable=False, server_default="0")
+    __mapper_args__ = {"version_id_col": version}
+
+
+# Create indexes for frequently queried fields
+Index("idx_booking_status", Booking.status)
+Index("idx_booking_driver_id", Booking.driver_id)
 
 
 class MaintenancePeriod(Base):

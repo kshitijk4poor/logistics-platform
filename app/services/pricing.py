@@ -4,8 +4,7 @@ from typing import Optional
 
 import h3
 import httpx
-
-from app.dependencies import cache
+from app.dependencies import cache, fetch_external_data
 from app.schemas.pricing import PricingSchema
 
 # Configuration for pricing factors based on vehicle types

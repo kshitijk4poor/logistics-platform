@@ -2,11 +2,10 @@ import json
 from datetime import datetime, timedelta, timezone
 
 import aioredis
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.dependencies import get_current_admin
 from app.schemas.analytics import AnalyticsResponse, PopularPickupLocation
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

@@ -57,6 +57,8 @@ async def websocket_drivers_batch(websocket: WebSocket):
                     if driver_id and latitude and longitude:
                         await publish_location(driver_id, latitude, longitude)
             else:
-                await websocket.send_text("Invalid data format. Expected a list of location updates.")
+                await websocket.send_text(
+                    "Invalid data format. Expected a list of location updates."
+                )
     except WebSocketDisconnect:
         manager.disconnect(websocket)

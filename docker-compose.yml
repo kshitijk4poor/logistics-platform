@@ -19,7 +19,7 @@ services:
 
   celery_worker:
     build: .
-    command: celery -A app.tasks worker --loglevel=info
+    command: celery -A app.tasks worker --loglevel=info --autoscale=${MAX_WORKERS}:${MIN_WORKERS}
     depends_on:
       - redis
       - postgres
@@ -27,6 +27,11 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres:5432/logistics
       - REDIS_URL=redis://redis:6379/0
       - KAFKA_URL=kafka:9092
+      - MIN_WORKERS=2
+      - MAX_WORKERS=10
+      - SCALE_UP_THRESHOLD=100
+      - SCALE_DOWN_THRESHOLD=10
+      - CHECK_INTERVAL=60
 
   celery_beat:
     build: .
@@ -77,6 +82,22 @@ services:
       - ./static:/app/static:ro  # If you have static files
     depends_on:
       - backend
+
+  celery_autoscaler:
+    build: .
+    command: python app/services/celery_autoscaler.py
+    depends_on:
+      - redis
+      - postgres
+      - celery_worker
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MIN_WORKERS=2
+      - MAX_WORKERS=10
+      - SCALE_UP_THRESHOLD=100
+      - SCALE_DOWN_THRESHOLD=10
+      - CHECK_INTERVAL=60
 
 volumes:
   postgres_data:

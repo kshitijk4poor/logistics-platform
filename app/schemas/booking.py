@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class BookingStatus(str, Enum):
     pending = "pending"
+    scheduled = "scheduled"
     confirmed = "confirmed"
     en_route = "en_route"
     goods_collected = "goods_collected"

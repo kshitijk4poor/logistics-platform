@@ -1,15 +1,11 @@
 from typing import Optional
 
 import h3
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models import BookingRequest, Driver
 from app.services.pricing import get_h3_index
-from app.services.tracking import (
-    assign_driver_to_booking,
-    get_redis,
-)
+from app.services.tracking import assign_driver_to_booking, get_redis
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def assign_driver(

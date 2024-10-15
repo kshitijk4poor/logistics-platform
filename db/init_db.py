@@ -1,7 +1,9 @@
 import logging
-from sqlalchemy_utils import database_exists, create_database
+
 from app.models import Base
-from .database import engine, SQLALCHEMY_DATABASE_URL
+from sqlalchemy_utils import create_database, database_exists
+
+from .database import SQLALCHEMY_DATABASE_URL, engine
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

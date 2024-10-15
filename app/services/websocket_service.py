@@ -1,7 +1,7 @@
 import asyncio
 import json
 import time
-from typing import Dict, Set, List
+from typing import Dict, List, Set
 
 import aioredis
 import h3

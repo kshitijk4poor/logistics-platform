@@ -1,7 +1,5 @@
 import asyncio
 
-from fastapi import FastAPI
-
 from app.routes import (
     admin,
     analytics,
@@ -14,6 +12,7 @@ from app.routes import (
 )
 from app.services.websocket_service import manager
 from app.tasks.demand import update_demand
+from fastapi import FastAPI
 
 app = FastAPI()
 

@@ -1,14 +1,14 @@
-import h3
 import logging
+
+import h3
+from app.dependencies import get_current_driver, get_current_user
+from app.models import Driver, User
+from app.services.tracking import publish_location, verify_token
+from app.services.websocket_service import ConnectionManager
+from db.database import get_db
 from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-
-from app.dependencies import get_current_driver, get_current_user
-from app.models import Driver, User
-from app.services.websocket_service import ConnectionManager
-from app.services.tracking import publish_location, verify_token
-from db.database import get_db
 
 router = APIRouter()
 
@@ -41,14 +41,18 @@ async def websocket_endpoint(
                     booking_id = data.get("booking_id")
                     status = data.get("status")
                     # Process acknowledgment (e.g., update booking status)
-                    logging.info(f"Driver {driver_id} acknowledged booking {booking_id} with status {status}")
+                    logging.info(
+                        f"Driver {driver_id} acknowledged booking {booking_id} with status {status}"
+                    )
                     # You can add logic here to update the booking status in the database
                 else:
                     # Existing location update handling
                     latitude = data.get("latitude")
                     longitude = data.get("longitude")
                     if latitude is None or longitude is None:
-                        await manager.send_personal_message("Invalid data format.", websocket)
+                        await manager.send_personal_message(
+                            "Invalid data format.", websocket
+                        )
                         continue
                     # Publish location to Redis
                     await publish_location(driver_id, latitude, longitude)

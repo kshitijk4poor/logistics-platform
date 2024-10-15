@@ -1,12 +1,12 @@
 from typing import Optional
 
 import h3
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-
 from app.models import Driver
 from app.schemas.booking import BookingRequest
+from app.services.caching import cache_driver_availability
 from app.services.pricing import get_h3_index
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 
 async def assign_driver(
@@ -53,6 +53,9 @@ async def assign_driver(
         nearest_driver.is_available = False
         await db.commit()
         await db.refresh(nearest_driver)
+
+        # Cache the driver's availability
+        await cache_driver_availability(nearest_driver.id, False)
         return nearest_driver
 
     return None

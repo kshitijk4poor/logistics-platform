@@ -1,12 +1,15 @@
 from datetime import datetime, timedelta
 
+from app.models import Booking, BookingStatusEnum, MaintenancePeriod
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models import Booking, MaintenancePeriod, BookingStatusEnum
 
 async def is_overlapping_booking(
-    db: AsyncSession, vehicle_id: int, scheduled_time: datetime, duration_minutes: int = 60
+    db: AsyncSession,
+    vehicle_id: int,
+    scheduled_time: datetime,
+    duration_minutes: int = 60,
 ) -> bool:
     """
     Check if the vehicle has any bookings overlapping with the scheduled_time.
@@ -15,13 +18,16 @@ async def is_overlapping_booking(
     end_time = scheduled_time + timedelta(minutes=duration_minutes)
     overlap_query = select(Booking).where(
         Booking.driver_id == vehicle_id,
-        Booking.status.notin_([BookingStatusEnum.cancelled, BookingStatusEnum.completed]),
+        Booking.status.notin_(
+            [BookingStatusEnum.cancelled, BookingStatusEnum.completed]
+        ),
         Booking.date < end_time,
-        (Booking.date + timedelta(minutes=duration_minutes)) > scheduled_time
+        (Booking.date + timedelta(minutes=duration_minutes)) > scheduled_time,
     )
     result = await db.execute(overlap_query)
     overlapping_booking = result.scalar_one_or_none()
     return overlapping_booking is not None
+
 
 async def is_under_maintenance(
     db: AsyncSession, vehicle_id: int, scheduled_time: datetime
@@ -32,15 +38,14 @@ async def is_under_maintenance(
     maintenance_query = select(MaintenancePeriod).where(
         MaintenancePeriod.vehicle_id == vehicle_id,
         MaintenancePeriod.start_time <= scheduled_time,
-        MaintenancePeriod.end_time >= scheduled_time
+        MaintenancePeriod.end_time >= scheduled_time,
     )
     result = await db.execute(maintenance_query)
     maintenance = result.scalar_one_or_none()
     return maintenance is not None
 
-async def validate_booking(
-    db: AsyncSession, vehicle_id: int, scheduled_time: datetime
-):
+
+async def validate_booking(db: AsyncSession, vehicle_id: int, scheduled_time: datetime):
     """
     Validate that the vehicle is available for the scheduled_time.
     """

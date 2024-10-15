@@ -1,10 +1,11 @@
-import os
 import logging
+import os
 from typing import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import QueuePool
 
 # Use environment variables for sensitive information
 POSTGRES_USER = os.getenv("POSTGRES_USER", "your_username")
@@ -16,7 +17,15 @@ POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # Create asynchronous engine
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+engine = create_async_engine(
+    SQLALCHEMY_DATABASE_URL,
+    echo=True,
+    poolclass=QueuePool,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=1800,
+)
 
 # Create asynchronous sessionmaker
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

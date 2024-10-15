@@ -3,12 +3,11 @@ import logging
 from datetime import datetime, timedelta
 
 import aioredis
+from app.models import Booking, BookingStatusEnum, Driver, User
 from celery import Celery
+from db.database import engine
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Booking, BookingStatusEnum, Driver, User
-from db.database import engine
 
 # Setup basic configuration for logging
 logging.basicConfig(
@@ -113,3 +112,37 @@ async def handle_booking_completion(self, booking_id: int):
         except Exception as e:
             logging.error(f"Error handling booking completion for {booking_id}: {e}")
             self.retry(exc=e)
+
+
+@app.task
+async def schedule_booking_processing(booking_id: int, scheduled_time: datetime):
+    # Calculate countdown in seconds
+    countdown = (scheduled_time - datetime.utcnow()).total_seconds()
+    if countdown > 0:
+        # Schedule the process_scheduled_booking task
+        process_scheduled_booking.apply_async(args=[booking_id], countdown=countdown)
+    else:
+        # If scheduled_time is in the past, process immediately
+        await process_scheduled_booking(booking_id)
+
+
+@app.task
+async def process_scheduled_booking(booking_id: int):
+    async with AsyncSession(engine) as db:
+        try:
+            # Fetch the booking
+            booking = await db.get(Booking, booking_id)
+            if not booking:
+                logging.error(f"Booking not found for ID: {booking_id}")
+                return
+
+            # Perform necessary processing for the scheduled booking
+            # Example: Update booking status, notify users, etc.
+            booking.status = BookingStatusEnum.completed
+            await db.commit()
+            logging.info(f"Processed scheduled booking ID: {booking_id}")
+
+        except Exception as e:
+            logging.error(f"Error processing scheduled booking {booking_id}: {e}")
+            # Optionally retry the task
+            process_scheduled_booking.retry(exc=e)

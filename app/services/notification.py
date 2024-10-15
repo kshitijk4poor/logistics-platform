@@ -1,9 +1,10 @@
 import json
-from sqlalchemy.ext.asyncio import AsyncSession
-from geoalchemy2.shape import to_shape
 
 from app.models import Booking
 from app.routes.tracking import manager
+from geoalchemy2.shape import to_shape
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 async def notify_nearby_drivers(booking_id: int, db: AsyncSession):
     booking = await db.get(Booking, booking_id)
@@ -30,11 +31,12 @@ async def notify_driver_assignment(driver_id: int, booking_id: int):
     """
     Notify the driver about the new booking assignment via WebSocket.
     """
-    message = json.dumps({
-        "type": "assignment",
-        "data": {
-            "booking_id": booking_id,
-            "message": "You have been assigned a new booking.",
+    message = json.dumps(
+        {
+            "type": "assignment",
+            "data": {
+                "booking_id": booking_id,
+                "message": "You have been assigned a new booking.",
             },
         }
     )

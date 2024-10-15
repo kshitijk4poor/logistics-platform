@@ -1,21 +1,21 @@
 import logging
 from datetime import datetime
 
+from app.dependencies import cache, get_current_user, rate_limit
+from app.models import Booking, BookingStatusEnum, Driver, RoleEnum, User
+from app.schemas.booking import BookingRequest, BookingResponse
+from app.services.immediate_booking import process_immediate_booking
+from app.services.matching import assign_driver
+from app.services.notification import notify_driver_assignment, notify_nearby_drivers
+from app.services.pricing import calculate_price
+from app.services.validation import validate_booking
+from app.tasks import compute_analytics, schedule_booking_processing
+from db.database import get_db
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
-from app.dependencies import cache, get_current_user, rate_limit
-from app.models import Booking, BookingStatusEnum, Driver, RoleEnum, User
-from app.schemas.booking import BookingRequest, BookingResponse
-from app.services.matching import assign_driver
-from app.services.notification import notify_nearby_drivers, notify_driver_assignment
-from app.services.validation import validate_booking
-from app.services.pricing import calculate_price
-from app.tasks import compute_analytics
-from db.database import get_db
 
 router = APIRouter()
 
@@ -44,48 +44,53 @@ async def create_booking(
         # Calculate price
         price = await calculate_price(booking_data.dict())
 
-        # Assign driver but allow manual acceptance
-        assigned_driver = await assign_driver(booking_data, db)
-        if not assigned_driver:
-            raise HTTPException(status_code=404, detail="No available drivers found")
-
-        # Validate booking time against driver's schedule and maintenance
+        # Determine if booking is scheduled
         scheduled_time = booking_data.scheduled_time or datetime.utcnow()
-        await validate_booking(db, assigned_driver.vehicle.id, scheduled_time)
-
-        # Create booking
-        booking = Booking(
-            user_id=current_user.id,  # Use the authenticated user's ID
-            driver_id=assigned_driver.id,
-            pickup_location=f"POINT({booking_data.pickup_longitude} {booking_data.pickup_latitude})",
-            dropoff_location=f"POINT({booking_data.dropoff_longitude} {booking_data.dropoff_latitude})",
-            vehicle_type=booking_data.vehicle_type,
-            price=price,
-            date=scheduled_time,
-            status=BookingStatusEnum.pending,
-            status_history=[
-                {"status": BookingStatusEnum.pending, "timestamp": datetime.utcnow()}
-            ],
+        is_scheduled = (
+            booking_data.scheduled_time is not None
+            and booking_data.scheduled_time > datetime.utcnow()
         )
 
-        db.add(booking)
-        await db.commit()
-        await db.refresh(booking)
+        # Set booking status based on scheduling
+        status = (
+            BookingStatusEnum.scheduled if is_scheduled else BookingStatusEnum.pending
+        )
 
-        await cache.set(
-            cache_key, {"id": booking.id, "price": price}, expire=300
-        )  # Cache for 5 minutes
+        async with db.begin():
+            # Create booking
+            booking = Booking(
+                user_id=current_user.id,
+                pickup_location=f"POINT({booking_data.pickup_longitude} {booking_data.pickup_latitude})",
+                dropoff_location=f"POINT({booking_data.dropoff_longitude} {booking_data.dropoff_latitude})",
+                vehicle_type=booking_data.vehicle_type,
+                price=price,
+                date=scheduled_time,
+                status=status,
+                status_history=[{"status": status, "timestamp": datetime.utcnow()}],
+            )
+            db.add(booking)
+            await db.flush()  # This will populate the booking.id
 
-        # Notify nearby drivers
-        background_tasks.add_task(notify_nearby_drivers, booking.id, db)
-        # Trigger analytics computation
-        background_tasks.add_task(compute_analytics.delay)
+            # Cache the booking
+            await cache.set(cache_key, {"id": booking.id, "price": price}, expire=300)
 
-        # Notify the assigned driver about the new booking
-        background_tasks.add_task(notify_driver_assignment, assigned_driver.id, booking.id)
+            if is_scheduled:
+                # Schedule background task to process booking at scheduled_time
+                background_tasks.add_task(
+                    schedule_booking_processing, booking.id, scheduled_time
+                )
+                booking_status = "scheduled"
+            else:
+                # Process immediate booking
+                background_tasks.add_task(process_immediate_booking, booking.id)
+                booking_status = "pending"
 
         return JSONResponse(
-            content={"booking_id": booking.id, "price": price, "status": "pending"}
+            content={
+                "booking_id": booking.id,
+                "price": price,
+                "status": booking_status,
+            }
         )
 
     except ValueError as ve:

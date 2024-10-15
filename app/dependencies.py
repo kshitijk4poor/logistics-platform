@@ -1,18 +1,17 @@
 import json
-from functools import wraps
-from fastapi import HTTPException, Request, status
 import time
 from datetime import datetime, timedelta
+from functools import wraps
 
 import aioredis
-from fastapi import Depends, HTTPException, status
+import httpx
+from app.models import Driver, RoleEnum, User
+from db.database import get_db
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseSettings
 from sqlalchemy.orm import Session
-
-from app.models import Driver, RoleEnum, User
-from db.database import get_db
 
 redis = aioredis.from_url(
     "redis://localhost", decode_responses=True, max_connections=10
@@ -126,19 +125,24 @@ class SlidingWindowRateLimiter:
 
     async def is_rate_limited(self, key):
         current_time = time.time()
-        self.requests = [req for req in self.requests if current_time - req < self.window_size]
+        self.requests = [
+            req for req in self.requests if current_time - req < self.window_size
+        ]
         if len(self.requests) >= self.max_requests:
             return True
         self.requests.append(current_time)
         return False
 
+
 rate_limiter = SlidingWindowRateLimiter(max_requests=100, window_size=60)
+
 
 def rate_limit():
     async def wrapper(request: Request):
         client_ip = request.client.host
         if await rate_limiter.is_rate_limited(client_ip):
             raise HTTPException(status_code=429, detail="Rate limit exceeded")
+
     return wrapper
 
 
@@ -146,9 +150,17 @@ SECRET_KEY = "your-secret-key"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+async def fetch_external_data(url: str, params: dict = None) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params)
+        response.raise_for_status()
+        return response.json()

@@ -1,8 +1,7 @@
 import aioredis
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-
 from app.dependencies import get_current_user
 from app.services.websocket_service import manager
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 
 router = APIRouter()
 
