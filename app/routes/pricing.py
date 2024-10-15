@@ -67,7 +67,7 @@ async def get_price(pricing_data: PricingSchema):
     - **scheduled_time**: (Optional) Scheduled time for the booking in ISO format.
     """
     try:
-        price = await calculate_price(pricing_data)
+        price = await calculate_price(pricing_data.dict())
         logger.info(f"Price calculated: {price} for booking: {pricing_data}")
         return {"estimated_price": price}
     except ValueError as ve:

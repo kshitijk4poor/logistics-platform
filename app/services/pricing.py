@@ -3,22 +3,53 @@ from datetime import datetime
 from typing import Optional
 
 import h3
+import httpx
 
 from app.dependencies import cache
 from app.schemas.pricing import PricingSchema
+from app.schemas.vehicles import VehicleTypeEnum
 
-# Configuration for pricing factors
-BASE_FARE = {"economy": 5.0, "standard": 7.0, "premium": 10.0}
-COST_PER_KM = {"economy": 1.5, "standard": 2.0, "premium": 2.5}
-SURGE_MULTIPLIER = (
-    1.0  # This can be dynamically fetched from configuration or real-time metrics
-)
-TIME_OF_DAY_MULTIPLIER = 1.0  # Adjust based on peak hours
-MIN_PRICE = 10.0
-MAX_PRICE = 500.0
+# Configuration for pricing factors based on vehicle types
+BASE_FARE = {"refrigerated_truck": 15.0, "van": 10.0, "truck": 12.5}
+COST_PER_KM = {"refrigerated_truck": 3.0, "van": 2.5, "truck": 3.5}
+MIN_PRICE = 20.0
+MAX_PRICE = 10000.0
 
 # H3 configuration
 H3_RESOLUTION = 9
+
+# Configuration for dynamic surge pricing
+SURGE_BASE_MULTIPLIER = 1.0
+SURGE_INCREMENT = 0.1
+SURGE_MAX_MULTIPLIER = 3.0
+
+# Configuration for time of day multiplier
+PEAK_HOURS = [(6, 9), (17, 20)]
+PEAK_MULTIPLIER = 1.5
+OFF_PEAK_MULTIPLIER = 1.0
+
+# Google Maps API Configuration
+GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"
+GOOGLE_DISTANCE_MATRIX_URL = "https://maps.googleapis.com/maps/api/distancematrix/json"
+
+
+async def get_real_time_demand(pickup_h3: str) -> float:
+    """
+    Fetch real-time demand data from Redis or another data source.
+    The demand factor influences the surge multiplier.
+    """
+    redis_client = await cache.get_client()
+    demand_key = f"demand:{pickup_h3}"
+    demand = await redis_client.get(demand_key)
+    if demand:
+        try:
+            demand = float(demand)
+            # Ensure demand is within a reasonable range
+            demand = max(1.0, min(demand, SURGE_MAX_MULTIPLIER))
+            return demand
+        except ValueError:
+            pass
+    return SURGE_BASE_MULTIPLIER
 
 
 def get_h3_index(lat: float, lon: float) -> str:
@@ -28,16 +59,34 @@ def get_h3_index(lat: float, lon: float) -> str:
     return h3.geo_to_h3(lat, lon, H3_RESOLUTION)
 
 
-def get_surge_multiplier(pickup_h3: str) -> float:
+async def get_distance_duration(
+    pickup_lat: float, pickup_lng: float, dropoff_lat: float, dropoff_lng: float
+) -> Optional[dict]:
     """
-    Determine surge multiplier based on the H3 index of the pickup location.
-    This is a placeholder; implement actual logic as per requirements.
+    Use Google Maps Distance Matrix API to get distance in kilometers and duration in minutes.
     """
-    # Example logic: Increase surge in high-demand areas
-    high_demand_zones = {"8928308280fffff", "8928308283fffff"}  # Example H3 indices
-    if pickup_h3 in high_demand_zones:
-        return 1.5  # 50% surge
-    return SURGE_MULTIPLIER
+    params = {
+        "origins": f"{pickup_lat},{pickup_lng}",
+        "destinations": f"{dropoff_lat},{dropoff_lng}",
+        "units": "metric",
+        "key": GOOGLE_MAPS_API_KEY,
+    }
+    async with httpx.AsyncClient() as client:
+        response = await client.get(GOOGLE_DISTANCE_MATRIX_URL, params=params)
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        if data.get("status") != "OK":
+            return None
+        try:
+            element = data["rows"][0]["elements"][0]
+            if element["status"] != "OK":
+                return None
+            distance_km = element["distance"]["value"] / 1000  # meters to kilometers
+            duration_min = element["duration"]["value"] / 60  # seconds to minutes
+            return {"distance_km": distance_km, "duration_min": duration_min}
+        except (IndexError, KeyError):
+            return None
 
 
 def get_time_of_day_multiplier(pickup_time: datetime) -> float:
@@ -45,19 +94,10 @@ def get_time_of_day_multiplier(pickup_time: datetime) -> float:
     Determine time of day multiplier based on pickup time.
     """
     hour = pickup_time.hour
-    if 7 <= hour <= 9 or 17 <= hour <= 19:
-        return 1.5  # Peak hours
-    return 1.0  # Off-peak hours
-
-
-def calculate_h3_distance(pickup_h3: str, dropoff_h3: str) -> float:
-    """
-    Calculate the approximate distance between two H3 indices.
-    """
-    # Use the H3 distance function to get the number of hexagons between two indices
-    hex_distance = h3.h3_distance(pickup_h3, dropoff_h3)
-    # Convert hex distance to kilometers (approximate conversion factor)
-    return hex_distance * 0.15  # Assuming each hexagon is ~150m
+    for start, end in PEAK_HOURS:
+        if start <= hour < end:
+            return PEAK_MULTIPLIER
+    return OFF_PEAK_MULTIPLIER
 
 
 async def calculate_price(pricing_data: dict) -> float:
@@ -73,19 +113,28 @@ async def calculate_price(pricing_data: dict) -> float:
     vehicle_type = pricing_schema.vehicle_type
     scheduled_time = pricing_schema.scheduled_time
 
-    # Calculate distance using H3
-    pickup_h3 = get_h3_index(pickup_lat, pickup_lng)
-    dropoff_h3 = get_h3_index(dropoff_lat, dropoff_lng)
-    distance = calculate_h3_distance(pickup_h3, dropoff_h3)
+    # Fetch distance and duration from Google Maps API
+    distance_duration = await get_distance_duration(
+        pickup_lat, pickup_lng, dropoff_lat, dropoff_lng
+    )
+    if not distance_duration:
+        raise ValueError("Unable to calculate distance and duration between locations.")
 
-    # Base fare and cost per km
-    base_fare = BASE_FARE.get(vehicle_type, BASE_FARE["standard"])
-    cost_per_km = COST_PER_KM.get(vehicle_type, COST_PER_KM["standard"])
+    distance = distance_duration["distance_km"]
+    duration = distance_duration["duration_min"]
+
+    # Base fare and cost per km based on vehicle type
+    if vehicle_type not in BASE_FARE or vehicle_type not in COST_PER_KM:
+        raise ValueError("Invalid vehicle type provided.")
+
+    base_fare = BASE_FARE[vehicle_type]
+    cost_per_km = COST_PER_KM[vehicle_type]
 
     total = base_fare + (cost_per_km * distance)
 
-    # Apply surge multiplier based on pickup location's H3 index
-    surge = get_surge_multiplier(pickup_h3)
+    # Apply surge multiplier based on real-time demand
+    pickup_h3 = get_h3_index(pickup_lat, pickup_lng)
+    surge = await get_surge_multiplier(pickup_h3)
     total *= surge
 
     # Apply time of day multiplier
@@ -110,3 +159,11 @@ async def calculate_price(pricing_data: dict) -> float:
     await cache.set(cache_key, total, expire=300)  # Cache for 5 minutes
 
     return total
+
+
+async def get_surge_multiplier(pickup_h3: str) -> float:
+    """
+    Determine surge multiplier based on real-time demand.
+    """
+    demand = await get_real_time_demand(pickup_h3)
+    return demand

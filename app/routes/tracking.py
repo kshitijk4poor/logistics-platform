@@ -1,3 +1,4 @@
+import h3
 from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
@@ -5,7 +6,6 @@ from app.dependencies import get_current_driver, get_current_user
 from app.models import Driver, User
 from app.services.websocket_service import ConnectionManager
 from db.database import get_db
-import h3
 
 router = APIRouter()
 
@@ -59,23 +59,30 @@ async def get_nearby_drivers(
 ):
     nearby_drivers = []
     current_radius = initial_radius_km
-    
+
     while current_radius <= max_radius_km and not nearby_drivers:
         h3_index = h3.geo_to_h3(lat, lng, manager.h3_resolution)
-        search_indexes = h3.k_ring(h3_index, int(current_radius / manager.h3_ring_distance))
-        
+        search_indexes = h3.k_ring(
+            h3_index, int(current_radius / manager.h3_ring_distance)
+        )
+
         for index in search_indexes:
             drivers = manager.h3_index_to_drivers.get(index, [])
             for driver_id in drivers:
                 driver_info = manager.driver_locations.get(driver_id)
-                if driver_info and (vehicle_type.lower() == "all" or driver_info["vehicle_type"] == vehicle_type):
-                    nearby_drivers.append({
-                        "driver_id": driver_id,
-                        "location": driver_info["h3_index"],
-                        "vehicle_type": driver_info["vehicle_type"],
-                    })
-        
+                if driver_info and (
+                    vehicle_type.lower() == "all"
+                    or driver_info["vehicle_type"] == vehicle_type
+                ):
+                    nearby_drivers.append(
+                        {
+                            "driver_id": driver_id,
+                            "location": driver_info["h3_index"],
+                            "vehicle_type": driver_info["vehicle_type"],
+                        }
+                    )
+
         if not nearby_drivers:
             current_radius *= 2  # Double the radius for the next iteration
-    
+
     return {"nearby_drivers": nearby_drivers, "search_radius_km": current_radius}

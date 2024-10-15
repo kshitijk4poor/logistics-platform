@@ -15,6 +15,7 @@ from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.matching import assign_driver
 from app.services.notification import notify_nearby_drivers
 from app.services.pricing import calculate_price
+from app.tasks import compute_analytics
 from db.database import get_db
 
 router = APIRouter()
