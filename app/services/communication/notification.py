@@ -1,6 +1,5 @@
 import json
-
-from fastapi import HTTPException
+from typing import List
 
 from app.services.communication.websocket_service import manager
 

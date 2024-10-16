@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 
 from app.models import Driver
 from app.services.caching.cache import cache_driver_availability
-from app.services.tracking.tracking import assign_driver_to_booking
+from app.services.tracking.driver_tracking import assign_driver_to_booking
 
 
 async def get_driver_from_db(driver_id: int, db: AsyncSession) -> Optional[Driver]:
