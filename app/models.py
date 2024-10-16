@@ -103,7 +103,6 @@ class Booking(Base):
         default=BookingStatusEnum.pending,
         index=True,
     )
-    status_history = Column(JSON, default=list)
     scheduled_time = Column(DateTime, nullable=True)
     user = relationship("User", back_populates="bookings")
     driver = relationship("Driver", back_populates="bookings")
@@ -125,3 +124,13 @@ class MaintenancePeriod(Base):
     reason = Column(String, nullable=True)
 
     vehicle = relationship("Vehicle")
+
+
+class BookingStatusHistory(Base):
+    __tablename__ = "booking_status_history"
+    id = Column(Integer, primary_key=True, index=True)
+    booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=False)
+    status = Column(Enum(BookingStatusEnum), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+
+    booking = relationship("Booking", back_populates="status_history")

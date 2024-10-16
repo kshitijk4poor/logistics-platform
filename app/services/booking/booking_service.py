@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Booking, BookingStatusEnum, User
+from app.models import Booking, BookingStatusEnum, BookingStatusHistory, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.caching.cache import cache
 from app.services.messaging.kafka_service import (
@@ -54,10 +54,15 @@ async def create_new_booking(
                 price=price,
                 date=scheduled_time,
                 status=status,
-                status_history=[{"status": status, "timestamp": datetime.utcnow()}],
             )
             db.add(booking)
             await db.flush()  # Populate booking.id
+
+            # Add initial status to BookingStatusHistory
+            status_history_entry = BookingStatusHistory(
+                booking_id=booking.id, status=status, timestamp=datetime.utcnow()
+            )
+            db.add(status_history_entry)
 
             # Cache the booking
             cache_key = f"booking:{booking_data.user_id}:{booking_data.pickup_latitude},{booking_data.pickup_longitude}:{booking_data.dropoff_latitude},{booking_data.dropoff_longitude}"

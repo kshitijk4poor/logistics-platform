@@ -2,7 +2,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Booking, BookingStatusEnum
+from app.models import Booking, BookingStatusEnum, BookingStatusHistory
 from app.services.assignment.matching import find_nearest_driver
 from app.services.communication.notification import notify_driver_assignment
 from app.services.messaging.kafka_service import (KAFKA_TOPIC_BOOKING_UPDATES,
@@ -36,9 +36,15 @@ async def process_immediate_booking(booking_id: int):
         # Update booking with driver assignment
         booking.driver_id = assigned_driver.id
         booking.status = BookingStatusEnum.confirmed
-        booking.status_history.append(
-            {"status": BookingStatusEnum.confirmed, "timestamp": datetime.utcnow()}
+
+        # Add status change to BookingStatusHistory
+        status_history_entry = BookingStatusHistory(
+            booking_id=booking.id,
+            status=BookingStatusEnum.confirmed,
+            timestamp=datetime.utcnow(),
         )
+        db.add(status_history_entry)
+
         await db.commit()
 
         # Notify driver about the assignment
