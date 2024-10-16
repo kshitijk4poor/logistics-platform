@@ -1,4 +1,6 @@
+import json
 import logging
+from datetime import datetime
 from typing import Any, Dict
 
 import h3
@@ -7,6 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.models import Driver
 from app.services.booking.booking_service import update_booking_status
+from app.services.messaging.kafka_service import (
+    KAFKA_TOPIC_DRIVER_AVAILABILITY_UPDATES, KAFKA_TOPIC_DRIVER_LOCATIONS,
+    kafka_service)
 from app.services.tracking import verify_token
 from app.services.tracking.location_update import update_driver_locations
 
@@ -37,13 +42,17 @@ class TrackingService:
             return
 
         vehicle_type = data.get("vehicle_type", "unknown")
-        
-        await update_driver_locations([{
-            "driver_id": driver_id,
-            "latitude": latitude,
-            "longitude": longitude,
-            "vehicle_type": vehicle_type
-        }])
+
+        await update_driver_locations(
+            [
+                {
+                    "driver_id": driver_id,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "vehicle_type": vehicle_type,
+                }
+            ]
+        )
 
     async def process_websocket_message(self, driver_id: str, data: Dict[str, Any]):
         message_type = data.get("type")
@@ -113,3 +122,48 @@ class TrackingService:
                 current_radius *= 2  # Double the radius for the next iteration
 
         return {"nearby_drivers": nearby_drivers, "search_radius_km": current_radius}
+
+    async def update_driver_location(
+        self,
+        driver_id: str,
+        latitude: float,
+        longitude: float,
+        vehicle_type: str,
+        is_available: bool,
+    ):
+        """
+        Update the driver's location and availability.
+        """
+        # Update in Redis or database as needed
+        await update_driver_locations(
+            [
+                {
+                    "driver_id": driver_id,
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "vehicle_type": vehicle_type,
+                }
+            ]
+        )
+
+        # Publish location update to Kafka
+        location_update_event = {
+            "driver_id": driver_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "vehicle_type": vehicle_type,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        await kafka_service.send_message(
+            KAFKA_TOPIC_DRIVER_LOCATIONS, location_update_event
+        )
+
+        # If availability status has changed, publish to Kafka
+        availability_update_event = {
+            "driver_id": driver_id,
+            "is_available": is_available,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        await kafka_service.send_message(
+            KAFKA_TOPIC_DRIVER_AVAILABILITY_UPDATES, availability_update_event
+        )

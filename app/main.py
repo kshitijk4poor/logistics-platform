@@ -10,19 +10,15 @@ from sqlalchemy.future import select
 
 from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.models import Role, RoleEnum
-from app.routes import (
-    admin,
-    analytics,
-    bookings,
-    drivers,
-    pricing,
-    tracking,
-    users,
-    websockets,
-)
+from app.routes import (admin, analytics, bookings, drivers, pricing, tracking,
+                        users, websockets)
+from app.services.analytics.analytics_consumer import start_analytics_consumer
+from app.services.booking.booking_consumer import start_booking_consumer
+from app.services.driver_availability.driver_availability_consumer import \
+    start_driver_availability_consumer
+from app.services.messaging.kafka_service import kafka_service
 from app.tasks.demand import update_demand
 from db.database import async_session, engine
-from app.services.messaging.kafka_service import kafka_service
 
 Base = declarative_base()
 
@@ -115,6 +111,11 @@ async def startup_event():
     await connect_to_db()
     await create_roles()
     await kafka_service.start()
+
+    # Start Kafka consumers
+    asyncio.create_task(start_booking_consumer())
+    asyncio.create_task(start_driver_availability_consumer())
+    asyncio.create_task(start_analytics_consumer())
 
 
 @app.on_event("shutdown")

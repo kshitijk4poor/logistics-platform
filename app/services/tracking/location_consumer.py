@@ -1,9 +1,10 @@
 import asyncio
 import json
-from app.services.messaging.kafka_service import kafka_service
-from app.services.caching.cache import get_redis_client
 
-KAFKA_TOPIC_DRIVER_LOCATIONS = "driver_locations"
+from app.services.caching.cache import get_redis_client
+from app.services.messaging.kafka_service import (KAFKA_TOPIC_DRIVER_LOCATIONS,
+                                                  kafka_service)
+
 
 async def handle_location_update(location_data):
     redis = await get_redis_client()
@@ -23,8 +24,12 @@ async def handle_location_update(location_data):
     await redis.set(f"driver:h3:{driver_id}", h3_index)
     await redis.expire(f"driver:h3:{driver_id}", 300)
 
+
 async def start_location_consumer():
-    await kafka_service.consume_messages(KAFKA_TOPIC_DRIVER_LOCATIONS, handle_location_update)
+    await kafka_service.consume_messages(
+        KAFKA_TOPIC_DRIVER_LOCATIONS, handle_location_update
+    )
+
 
 # Run this function in a separate process or thread
 if __name__ == "__main__":

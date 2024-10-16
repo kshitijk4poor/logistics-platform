@@ -122,5 +122,25 @@ services:
       - KAFKA_URL=kafka:29092
       - REDIS_URL=redis://redis:6379/0
 
+  booking_consumer:
+    build: .
+    command: python app/services/booking/booking_consumer.py
+    depends_on:
+      - kafka
+      - redis
+    environment:
+      - KAFKA_URL=kafka:29092
+      - REDIS_URL=redis://redis:6379/0
+
+  demand_consumer:
+    build: .
+    command: python app/services/demand/demand_consumer.py
+    depends_on:
+      - kafka
+      - redis
+    environment:
+      - KAFKA_URL=kafka:29092
+      - REDIS_URL=redis://redis:6379/0
+
 volumes:
   postgres_data:

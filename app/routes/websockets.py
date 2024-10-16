@@ -4,10 +4,8 @@ from fastapi import APIRouter, WebSocket
 from opentelemetry import trace
 
 from app.services.communication.websocket_service import (
-    handle_driver_batch_connection,
-    handle_driver_connection,
-    handle_user_connection,
-)
+    handle_driver_batch_connection, handle_driver_connection,
+    handle_user_connection)
 
 router = APIRouter()
 

@@ -2,19 +2,8 @@ from datetime import datetime
 from enum import Enum as PyEnum
 
 from geoalchemy2 import Geometry
-from sqlalchemy import (
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    Enum,
-    Float,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    Version,
-)
+from sqlalchemy import (JSON, Boolean, Column, DateTime, Enum, Float,
+                        ForeignKey, Index, Integer, String, Version)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 

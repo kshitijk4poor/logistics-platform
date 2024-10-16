@@ -3,10 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.schemas.pricing import PricingCreate, PricingResponse
-from app.services.pricing.pricing_service import (
-    create_pricing_service,
-    get_pricing_service,
-)
+from app.services.pricing.pricing_service import (create_pricing_service,
+                                                  get_pricing_service)
 
 router = APIRouter()
 

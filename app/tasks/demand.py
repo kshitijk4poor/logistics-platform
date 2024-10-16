@@ -1,25 +1,34 @@
 import asyncio
+import time
+from typing import Any, Dict
 
-import aioredis
+from app.services.messaging.kafka_service import kafka_service
 
+KAFKA_TOPIC_DEMAND_UPDATES = "demand_updates"
 H3_INDEXES = ["8928308280fffff", "8928308283fffff"]  # Example H3 indices
 
 
 async def update_demand():
-    redis = await aioredis.from_url(
-        "redis://localhost", encoding="utf-8", decode_responses=True
-    )
-    try:
-        while True:
-            for h3_index in H3_INDEXES:
-                # Example logic: Demand increases with the number of active bookings in the area
-                active_bookings = await redis.scard(f"active_bookings:{h3_index}")
-                demand = 1.0 + (active_bookings * 0.1)  # Base demand is 1.0
-                demand = min(demand, 2.5)  # Cap the demand
-                await redis.set(f"demand:{h3_index}", demand)
-            await asyncio.sleep(60)  # Update every minute
-    finally:
-        await redis.close()
+    while True:
+        for h3_index in H3_INDEXES:
+            # Example logic: Demand increases with time (replace with actual logic)
+            demand = (
+                1.0 + (time.time() % 3600) / 3600
+            )  # Base demand is 1.0, increases over an hour
+            demand = min(demand, 2.5)  # Cap the demand
+
+            demand_data: Dict[str, Any] = {
+                "h3_index": h3_index,
+                "demand": demand,
+                "timestamp": int(time.time()),
+            }
+
+            # Publish demand update to Kafka
+            await kafka_service.send_message(KAFKA_TOPIC_DEMAND_UPDATES, demand_data)
+
+        await asyncio.sleep(60)  # Update every minute
 
 
-# sample implementation of demand for surge pricing
+# Run this function in a separate process or thread
+if __name__ == "__main__":
+    asyncio.run(update_demand())

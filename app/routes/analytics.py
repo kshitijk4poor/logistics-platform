@@ -3,10 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
 from app.schemas.analytics import AnalyticsCreate, AnalyticsResponse
-from app.services.analytics.analytics_service import (
-    create_analytics_service,
-    get_analytics_service,
-)
+from app.services.analytics.analytics_service import (create_analytics_service,
+                                                      get_analytics_service)
 
 router = APIRouter()
 

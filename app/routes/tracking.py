@@ -1,7 +1,8 @@
 import logging
 
 import h3
-from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
+from fastapi import (APIRouter, Depends, Security, WebSocket,
+                     WebSocketDisconnect)
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 

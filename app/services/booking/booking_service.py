@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from fastapi import BackgroundTasks, HTTPException
@@ -6,9 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Booking, BookingStatusEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.caching.cache import cache
+from app.services.messaging.kafka_service import (
+    KAFKA_TOPIC_BOOKING_STATUS_UPDATES, KAFKA_TOPIC_BOOKING_UPDATES,
+    kafka_service)
 from app.services.pricing import calculate_price
 from app.services.validation.booking_validation import validate_booking
 from app.tasks import process_immediate_booking, schedule_booking_processing
+from app.utils.kafka_producer import publish_event
 
 
 async def create_new_booking(
@@ -58,12 +63,30 @@ async def create_new_booking(
             cache_key = f"booking:{booking_data.user_id}:{booking_data.pickup_latitude},{booking_data.pickup_longitude}:{booking_data.dropoff_latitude},{booking_data.dropoff_longitude}"
             await cache.set(cache_key, {"id": booking.id, "price": price}, expire=300)
 
+            # Publish booking creation event to Kafka
+            booking_event = {
+                "event_type": "booking_created",
+                "booking_id": booking.id,
+                "user_id": current_user.id,
+                "status": status,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            await publish_event(KAFKA_TOPIC_BOOKING_UPDATES, booking_event)
+
             if is_scheduled:
                 # Schedule background task for scheduled booking
                 background_tasks.add_task(
                     schedule_booking_processing, booking.id, scheduled_time
                 )
                 booking_status = "scheduled"
+                booking_status_event = {
+                    "booking_id": booking.id,
+                    "status": "scheduled",
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+                await kafka_service.send_message(
+                    KAFKA_TOPIC_BOOKING_STATUS_UPDATES, booking_status_event
+                )
             else:
                 # Process immediate booking
                 background_tasks.add_task(process_immediate_booking, booking.id)

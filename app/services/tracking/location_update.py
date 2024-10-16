@@ -3,9 +3,11 @@ import time
 from typing import Any, Dict, List
 
 import h3
+
 from app.services.messaging.kafka_service import kafka_service
 
 KAFKA_TOPIC_DRIVER_LOCATIONS = "driver_locations"
+
 
 async def update_driver_locations(driver_updates: List[Dict[str, Any]]):
     """
@@ -25,7 +27,7 @@ async def update_driver_locations(driver_updates: List[Dict[str, Any]]):
             "longitude": longitude,
             "vehicle_type": vehicle_type,
             "h3_index": h3_index,
-            "timestamp": int(time.time())
+            "timestamp": int(time.time()),
         }
 
         # Publish location update to Kafka
