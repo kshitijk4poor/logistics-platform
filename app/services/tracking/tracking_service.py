@@ -1,13 +1,14 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import h3
 from fastapi import WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.models import BookingStatusEnum, Driver
+from app.models import Driver
 from app.services.booking.booking_service import update_booking_status
-from app.services.tracking import publish_location, verify_token
+from app.services.tracking import verify_token
+from app.services.tracking.location_update import update_driver_locations
 
 
 class TrackingService:
@@ -32,12 +33,17 @@ class TrackingService:
         latitude = data.get("latitude")
         longitude = data.get("longitude")
         if latitude is None or longitude is None:
-            await self.manager.send_personal_message(
-                "Invalid data format.", self.manager.active_drivers.get(driver_id)
-            )
+            logging.error(f"Invalid location data for driver {driver_id}: {data}")
             return
-        # Publish location to Redis
-        await publish_location(driver_id, latitude, longitude)
+
+        vehicle_type = data.get("vehicle_type", "unknown")
+        
+        await update_driver_locations([{
+            "driver_id": driver_id,
+            "latitude": latitude,
+            "longitude": longitude,
+            "vehicle_type": vehicle_type
+        }])
 
     async def process_websocket_message(self, driver_id: str, data: Dict[str, Any]):
         message_type = data.get("type")

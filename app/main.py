@@ -22,6 +22,7 @@ from app.routes import (
 )
 from app.tasks.demand import update_demand
 from db.database import async_session, engine
+from app.services.messaging.kafka_service import kafka_service
 
 Base = declarative_base()
 
@@ -50,7 +51,6 @@ app.add_middleware(
 )
 
 app.add_middleware(RateLimiterMiddleware)
-
 app.include_router(admin.router, prefix="/api/v1", tags=["admin"])
 app.include_router(bookings.router, prefix="/api/v1", tags=["bookings"])
 app.include_router(tracking.router, prefix="/api/v1", tags=["tracking"])
@@ -114,6 +114,12 @@ async def startup_event():
     asyncio.create_task(update_demand())
     await connect_to_db()
     await create_roles()
+    await kafka_service.start()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    await kafka_service.stop()
 
 
 @app.get("/")

@@ -20,3 +20,5 @@ opentelemetry-api
 asyncpg
 aiohttp
 python-socketio
+kafka-python
+aiokafka
