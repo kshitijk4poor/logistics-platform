@@ -16,6 +16,10 @@ services:
       - DATABASE_URL=postgresql://user:password@postgres:5432/logistics
       - REDIS_URL=redis://redis:6379/0
       - KAFKA_URL=kafka:9092
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
 
   celery_worker:
     build: .

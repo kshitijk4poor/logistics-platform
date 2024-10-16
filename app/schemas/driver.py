@@ -2,8 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from app.schemas.booking import BookingStatus
 from pydantic import BaseModel, Field
+
+from app.schemas.booking import BookingStatus
 
 
 class BookingAssignment(BaseModel):

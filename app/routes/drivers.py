@@ -1,6 +1,20 @@
 import logging
 from datetime import datetime
 
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+
 from app.dependencies import get_current_driver, get_db
 from app.models import Booking, BookingStatusEnum, Driver
 from app.schemas.booking import StatusUpdateRequest
@@ -15,19 +29,6 @@ from app.services.tracking import (
 )
 from app.services.websocket_service import manager
 from app.tasks import compute_analytics, handle_booking_completion, update_analytics
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    HTTPException,
-    WebSocket,
-    WebSocketDisconnect,
-    status,
-)
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
 
 router = APIRouter(prefix="/driver", tags=["drivers"])
 

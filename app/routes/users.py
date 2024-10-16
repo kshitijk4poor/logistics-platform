@@ -1,12 +1,6 @@
 from datetime import timedelta
 
 import aioredis
-from app.config import settings
-from app.dependencies import get_current_admin, get_current_user, get_db
-from app.models import Role, User
-from app.schemas.user import Token, UserCreate, UserResponse
-from app.services.websocket_service import manager
-from app.utils.auth import authenticate_user, create_access_token, get_password_hash
 from fastapi import (
     APIRouter,
     Depends,
@@ -17,6 +11,13 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from app.config import settings
+from app.dependencies import get_current_admin, get_current_user, get_db
+from app.models import Role, User
+from app.schemas.user import Token, UserCreate, UserResponse
+from app.services.websocket_service import manager
+from app.utils.auth import authenticate_user, create_access_token, get_password_hash
 
 router = APIRouter()
 

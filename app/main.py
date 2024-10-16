@@ -2,6 +2,11 @@ import asyncio
 import logging
 
 import jsonlog
+from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
 from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.models import Role, RoleEnum
 from app.routes import (
@@ -17,10 +22,6 @@ from app.routes import (
 from app.services.websocket_service import manager
 from app.tasks.demand import update_demand
 from db.database import async_session, engine
-from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")

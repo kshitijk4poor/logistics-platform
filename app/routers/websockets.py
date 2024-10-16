@@ -1,7 +1,8 @@
 import json
 
-from app.services.websocket_service import manager, publish_location
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+from app.services.websocket_service import manager, publish_location
 
 router = APIRouter()
 

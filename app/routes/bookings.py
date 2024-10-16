@@ -1,6 +1,12 @@
 import logging
 from datetime import datetime
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi.responses import JSONResponse
+from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
 from app.dependencies import cache, get_current_user, rate_limit
 from app.models import Booking, BookingStatusEnum, Driver, RoleEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
@@ -11,11 +17,6 @@ from app.services.pricing import calculate_price
 from app.services.validation import validate_booking
 from app.tasks import compute_analytics, schedule_booking_processing
 from db.database import get_db
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from fastapi.responses import JSONResponse
-from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 router = APIRouter()
 

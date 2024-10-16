@@ -1,8 +1,10 @@
 from datetime import datetime, timedelta
+from typing import Optional
 
-from app.models import Booking, BookingStatusEnum, MaintenancePeriod
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from app.models import Booking, BookingStatusEnum, MaintenancePeriod
 
 
 async def is_overlapping_booking(
@@ -47,10 +49,10 @@ async def is_under_maintenance(
 
 async def validate_booking(db: AsyncSession, vehicle_id: int, scheduled_time: datetime):
     """
-    Validate that the vehicle is available for the scheduled_time.
+    Perform all necessary validations for a booking.
     """
-    if await is_overlapping_booking(db, vehicle_id, scheduled_time):
-        raise ValueError("Vehicle is already booked for the selected time.")
-
     if await is_under_maintenance(db, vehicle_id, scheduled_time):
-        raise ValueError("Vehicle is under maintenance during the selected time.")
+        raise ValueError("Vehicle is under maintenance at the scheduled time.")
+
+    if await is_overlapping_booking(db, vehicle_id, scheduled_time):
+        raise ValueError("Vehicle has an overlapping booking at the scheduled time.")

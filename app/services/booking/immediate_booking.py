@@ -1,11 +1,12 @@
 from datetime import datetime
 
-from app.models import Booking, BookingStatusEnum
-from app.services.assignment import assign_driver
-from app.services.notification import notify_driver_assignment
-from app.services.validation import validate_booking
-from db.database import get_db
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Booking, BookingStatusEnum
+from app.services.assignment.matching import find_nearest_driver
+from app.services.communication.notification import notify_driver_assignment
+from app.services.validation.validation import validate_booking
+from db.database import get_db
 
 
 async def process_immediate_booking(booking_id: int):
@@ -20,7 +21,7 @@ async def process_immediate_booking(booking_id: int):
             return
 
         # Assign driver
-        assigned_driver = await assign_driver(booking, db)
+        assigned_driver = await find_nearest_driver(booking, db)
         if not assigned_driver:
             # Handle no available driver
             booking.status = BookingStatusEnum.cancelled

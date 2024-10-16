@@ -13,10 +13,10 @@ async def cache_driver_availability(driver_id: int, is_available: bool):
     await redis.expire(f"driver:availability:{driver_id}", 3600)  # Cache for 1 hour
 
 
-async def get_driver_availability(driver_id: int):
+async def get_driver_availability(driver_id: int) -> bool:
     redis = await get_redis_client()
     availability = await redis.get(f"driver:availability:{driver_id}")
-    return availability == "True" if availability else None
+    return availability == "True" if availability else False
 
 
 async def cache_booking_status(booking_id: int, status: str):
@@ -25,6 +25,7 @@ async def cache_booking_status(booking_id: int, status: str):
     await redis.expire(f"booking:status:{booking_id}", 3600)  # Cache for 1 hour
 
 
-async def get_booking_status(booking_id: int):
+async def get_booking_status(booking_id: int) -> str:
     redis = await get_redis_client()
     status = await redis.get(f"booking:status:{booking_id}")
+    return status if status else "Unknown"

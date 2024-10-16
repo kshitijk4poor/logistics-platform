@@ -4,8 +4,9 @@ from typing import Optional
 
 import h3
 import httpx
-from app.dependencies import cache, fetch_external_data
+
 from app.schemas.pricing import PricingSchema
+from app.services.caching.cache import get_redis_client
 
 # Configuration for pricing factors based on vehicle types
 BASE_FARE = {"refrigerated_truck": 15.0, "van": 10.0, "truck": 12.5}
@@ -36,7 +37,7 @@ async def get_real_time_demand(pickup_h3: str) -> float:
     Fetch real-time demand data from Redis or another data source.
     The demand factor influences the surge multiplier.
     """
-    redis_client = await cache.get_client()
+    redis_client = await get_redis_client()
     demand_key = f"demand:{pickup_h3}"
     demand = await redis_client.get(demand_key)
     if demand:
@@ -87,15 +88,21 @@ async def get_distance_duration(
             return None
 
 
-def get_time_of_day_multiplier(pickup_time: datetime) -> float:
+async def get_surge_multiplier(pickup_h3: str) -> float:
     """
-    Determine time of day multiplier based on pickup time.
+    Calculate the surge multiplier based on real-time demand and time of day.
     """
-    hour = pickup_time.hour
-    for start, end in PEAK_HOURS:
-        if start <= hour < end:
-            return PEAK_MULTIPLIER
-    return OFF_PEAK_MULTIPLIER
+    demand = await get_real_time_demand(pickup_h3)
+    current_hour = datetime.utcnow().hour
+
+    # Determine if current time is in peak hours
+    if any(start <= current_hour < end for start, end in PEAK_HOURS):
+        time_multiplier = PEAK_MULTIPLIER
+    else:
+        time_multiplier = OFF_PEAK_MULTIPLIER
+
+    surge = demand * time_multiplier
+    return min(surge, SURGE_MAX_MULTIPLIER)
 
 
 async def calculate_price(pricing_data: dict) -> float:
@@ -133,35 +140,10 @@ async def calculate_price(pricing_data: dict) -> float:
     # Apply surge multiplier based on real-time demand
     pickup_h3 = get_h3_index(pickup_lat, pickup_lng)
     surge = await get_surge_multiplier(pickup_h3)
+
     total *= surge
 
-    # Apply time of day multiplier
-    if scheduled_time:
-        pickup_time = datetime.fromisoformat(scheduled_time)
-    else:
-        pickup_time = datetime.utcnow()
-    time_multiplier = get_time_of_day_multiplier(pickup_time)
-    total *= time_multiplier
-
-    # Apply minimum and maximum price constraints
-    total = max(total, MIN_PRICE)
-    total = min(total, MAX_PRICE)
-
-    # Round to two decimal places
-    total = round(total, 2)
-
-    # Cache the calculated price for future use
-    cache_key = (
-        f"price:{pickup_lat},{pickup_lng}:{dropoff_lat},{dropoff_lng}:{vehicle_type}"
-    )
-    await cache.set(cache_key, total, expire=300)  # Cache for 5 minutes
+    # Enforce min and max price
+    total = max(MIN_PRICE, min(total, MAX_PRICE))
 
     return total
-
-
-async def get_surge_multiplier(pickup_h3: str) -> float:
-    """
-    Determine surge multiplier based on real-time demand.
-    """
-    demand = await get_real_time_demand(pickup_h3)
-    return demand
