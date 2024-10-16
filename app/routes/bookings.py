@@ -1,12 +1,12 @@
-from fastapi import APIRouter, BackgroundTasks, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.dependencies import get_current_user, rate_limit, get_db
+from app.dependencies import get_current_user, get_db, rate_limit
 from app.models import User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.booking.booking_service import create_new_booking
+from fastapi import APIRouter, BackgroundTasks, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
+
 
 @router.post("/book", response_model=BookingResponse)
 @rate_limit(max_calls=5, time_frame=60)

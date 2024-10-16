@@ -1,24 +1,28 @@
 from datetime import datetime
-from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Booking, BookingStatusEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
-from app.services.pricing import calculate_price
-from app.services.validation import validate_booking
 from app.services.caching.cache import cache
+from app.services.pricing import calculate_price
+from app.services.validation.booking_validation import validate_booking
 from app.tasks import process_immediate_booking, schedule_booking_processing
+from fastapi import BackgroundTasks, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 async def create_new_booking(
     booking_data: BookingRequest,
     current_user: User,
     db: AsyncSession,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
 ) -> BookingResponse:
     """
     Create a new booking and handle subsequent operations.
     """
     try:
+        # Validate booking
+        await validate_booking(db, booking_data)
+
         # Calculate price
         price = await calculate_price(booking_data.dict())
 
@@ -30,10 +34,9 @@ async def create_new_booking(
         )
 
         # Set booking status based on scheduling
-        status = BookingStatusEnum.scheduled if is_scheduled else BookingStatusEnum.pending
-
-        # Validate booking
-        await validate_booking(db, booking_data.vehicle_type, scheduled_time)
+        status = (
+            BookingStatusEnum.scheduled if is_scheduled else BookingStatusEnum.pending
+        )
 
         async with db.begin():
             # Create booking
@@ -56,7 +59,9 @@ async def create_new_booking(
 
             if is_scheduled:
                 # Schedule background task for scheduled booking
-                background_tasks.add_task(schedule_booking_processing, booking.id, scheduled_time)
+                background_tasks.add_task(
+                    schedule_booking_processing, booking.id, scheduled_time
+                )
                 booking_status = "scheduled"
             else:
                 # Process immediate booking

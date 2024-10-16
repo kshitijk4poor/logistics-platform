@@ -1,12 +1,13 @@
 import logging
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
+import h3
+from app.models import BookingStatusEnum, Driver
+from app.services.booking.booking_service import update_booking_status
+from app.services.tracking import publish_location, verify_token
 from fastapi import WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.models import Driver, BookingStatusEnum
-from app.services.booking.booking_service import update_booking_status
-from app.services.tracking import publish_location, verify_token
-import h3
 
 class TrackingService:
     def __init__(self, manager):
@@ -16,7 +17,9 @@ class TrackingService:
         booking_id = data.get("booking_id")
         status = data.get("status")
         if not booking_id or not status:
-            logging.error(f"Invalid acknowledgment data from driver {driver_id}: {data}")
+            logging.error(
+                f"Invalid acknowledgment data from driver {driver_id}: {data}"
+            )
             return
         logging.info(
             f"Driver {driver_id} acknowledged booking {booking_id} with status {status}"
@@ -42,7 +45,9 @@ class TrackingService:
         else:
             await self.handle_location_update(driver_id, data)
 
-    async def websocket_connection(self, websocket, driver_id: str, current_driver: Driver, db: Session):
+    async def websocket_connection(
+        self, websocket, driver_id: str, current_driver: Driver, db: Session
+    ):
         if str(current_driver.id) != driver_id:
             await websocket.close(code=4003)
             return
@@ -64,9 +69,14 @@ class TrackingService:
             await self.manager.send_personal_message(f"Error: {str(e)}", websocket)
             await self.manager.disconnect_driver(driver_id)
 
-
-    async def get_nearby_drivers(self, lat: float, lng: float, initial_radius_km: float,
-                                 max_radius_km: float, vehicle_type: str) -> Dict[str, Any]:
+    async def get_nearby_drivers(
+        self,
+        lat: float,
+        lng: float,
+        initial_radius_km: float,
+        max_radius_km: float,
+        vehicle_type: str,
+    ) -> Dict[str, Any]:
         nearby_drivers = []
         current_radius = initial_radius_km
 

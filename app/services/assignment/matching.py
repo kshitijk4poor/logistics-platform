@@ -1,12 +1,11 @@
 from typing import Optional
 
 import h3
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models import BookingRequest, Driver
 from app.services.assignment.driver_assignment import assign_driver
 from app.services.caching.cache import get_redis_client
 from app.services.tracking.driver_tracking import get_driver_location
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from .driver_assignment import get_driver_from_db
 

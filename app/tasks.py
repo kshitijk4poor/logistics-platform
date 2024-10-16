@@ -3,12 +3,11 @@ import logging
 from datetime import datetime, timedelta
 
 import aioredis
+from app.models import Booking, BookingStatusEnum, Driver, User
 from celery import Celery
+from db.database import engine
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Booking, BookingStatusEnum, Driver, User
-from db.database import engine
 
 # Setup basic configuration for logging
 logging.basicConfig(

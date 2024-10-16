@@ -1,15 +1,14 @@
 import logging
 
 import h3
+from app.dependencies import get_current_driver, get_current_user
+from app.models import Driver, User
+from app.services.communication.websocket_service import ConnectionManager
+from app.services.tracking.tracking_service import TrackingService
+from db.database import get_db
 from fastapi import APIRouter, Depends, Security, WebSocket, WebSocketDisconnect
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-
-from app.dependencies import get_current_driver, get_current_user
-from app.models import Driver, User
-from app.services.tracking.tracking_service import TrackingService
-from app.services.communication.websocket_service import ConnectionManager
-from db.database import get_db
 
 router = APIRouter()
 
@@ -26,7 +25,9 @@ async def websocket_endpoint(
     current_driver: Driver = Security(get_current_driver, scopes=["driver"]),
     db: Session = Depends(get_db),
 ):
-    await tracking_service.websocket_connection(websocket, driver_id, current_driver, db)
+    await tracking_service.websocket_connection(
+        websocket, driver_id, current_driver, db
+    )
 
 
 @router.get("/nearby-drivers")

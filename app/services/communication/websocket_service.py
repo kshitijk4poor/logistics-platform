@@ -1,22 +1,22 @@
 import asyncio
 import json
+import logging
 from typing import Dict, List, Set
 
-from fastapi import WebSocket, status, WebSocketDisconnect
-from pydantic import ValidationError
 import h3
+from app.dependencies import get_current_user
+from app.models import LocationUpdate
+from app.services.caching.cache import get_redis_client
 from app.services.tracking import driver_tracker
 from app.services.tracking.tracking_service import TrackingService
-from app.dependencies import get_current_user
-from app.services.caching.cache import get_redis_client
 from circuitbreaker import circuit
-import logging
+from fastapi import WebSocket, WebSocketDisconnect, status
 from opentelemetry import trace
-
-from app.models import LocationUpdate
+from pydantic import ValidationError
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
+
 
 class ConnectionManager:
     def __init__(self):
@@ -103,13 +103,16 @@ class ConnectionManager:
             await driver_tracker.process_batch_updates(updates)
             logger.debug(f"Processed batch updates: {updates}")
 
+
 manager = ConnectionManager()
 
 tracking_service = TrackingService(manager)
 
+
 @circuit(failure_threshold=5, recovery_timeout=30)
 async def get_redis_connection_with_circuit_breaker():
     return await get_redis_client()
+
 
 async def authenticate_websocket(websocket: WebSocket, is_driver: bool = False):
     token = websocket.headers.get("Authorization")
@@ -134,12 +137,13 @@ async def authenticate_websocket(websocket: WebSocket, is_driver: bool = False):
         logger.warning(f"WebSocket connection closed due to authentication error: {e}")
         return None
 
+
 async def handle_driver_connection(websocket: WebSocket):
     user = await authenticate_websocket(websocket, is_driver=True)
     if not user:
         return
 
-    driver_id = str(user['id'])
+    driver_id = str(user["id"])
     await manager.connect_driver(driver_id, websocket)
     try:
         while True:
@@ -151,7 +155,7 @@ async def handle_driver_connection(websocket: WebSocket):
                     location.latitude,
                     location.longitude,
                     user["vehicle_type"],
-                    user["is_available"]
+                    user["is_available"],
                 )
             except ValidationError as e:
                 error_message = f"Invalid data format: {str(e)}"
@@ -163,12 +167,13 @@ async def handle_driver_connection(websocket: WebSocket):
         logger.error(f"Error in handle_driver_connection: {str(e)}")
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
 
+
 async def handle_user_connection(websocket: WebSocket):
     user = await authenticate_websocket(websocket)
     if not user:
         return
 
-    user_id = str(user['id'])
+    user_id = str(user["id"])
     await manager.connect_user(user_id, websocket)
     try:
         redis = await get_redis_client()
@@ -188,12 +193,13 @@ async def handle_user_connection(websocket: WebSocket):
         await pubsub.close()
         logger.info(f"User {user_id} unsubscribed and connection closed.")
 
+
 async def handle_driver_batch_connection(websocket: WebSocket):
     user = await authenticate_websocket(websocket, is_driver=True)
     if not user:
         return
 
-    driver_id = str(user['id'])
+    driver_id = str(user["id"])
     await manager.connect_driver(driver_id, websocket)
     try:
         while True:
@@ -207,14 +213,18 @@ async def handle_driver_batch_connection(websocket: WebSocket):
                             location_update.latitude,
                             location_update.longitude,
                             user["vehicle_type"],
-                            user["is_available"]
+                            user["is_available"],
                         )
                     except ValidationError as e:
                         error_message = f"Invalid data format: {str(e)}"
                         await manager.send_personal_message(error_message, websocket)
-                        logger.error(f"Batch validation error from driver {driver_id}: {e}")
+                        logger.error(
+                            f"Batch validation error from driver {driver_id}: {e}"
+                        )
             else:
-                error_message = "Invalid data format. Expected a list of location updates."
+                error_message = (
+                    "Invalid data format. Expected a list of location updates."
+                )
                 await manager.send_personal_message(error_message, websocket)
                 logger.warning(f"Driver {driver_id} sent invalid batch data.")
     except WebSocketDisconnect:
