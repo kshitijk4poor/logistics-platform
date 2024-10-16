@@ -15,3 +15,5 @@ pytest
 httpx
 prometheus-fastapi-instrumentator
 passlib[bcrypt]
+circuitbreaker
+opentelemetry-api

@@ -1,7 +1,5 @@
 import asyncio
-from typing import Dict
-
-import h3
+from typing import Dict, List
 
 from .location_update import update_driver_locations
 
@@ -26,15 +24,18 @@ class DriverTracker:
         if len(self.location_update_queue) >= self.batch_size:
             self.loop.create_task(self.process_batch_updates())
 
-    async def process_batch_updates(self):
-        if not self.location_update_queue:
-            return
-
-        updates = list(self.location_update_queue.values())[: self.batch_size]
+    def get_batch_updates(self, batch_size: int) -> List[Dict]:
+        updates = list(self.location_update_queue.values())[:batch_size]
         for update in updates:
             self.location_update_queue.pop(update["driver_id"], None)
+        return updates
 
-        await update_driver_locations(updates)
+    async def process_batch_updates(self):
+        while True:
+            updates = self.get_batch_updates(self.batch_size)
+            if updates:
+                await update_driver_locations(updates)
+            await asyncio.sleep(self.batch_interval)
 
 
 driver_tracker = DriverTracker()
