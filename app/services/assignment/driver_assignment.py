@@ -1,10 +1,11 @@
 from typing import Optional
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
 from app.models import Driver
 from app.services.caching.cache import cache_driver_availability
 from app.services.tracking.driver_tracking import assign_driver_to_booking
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 
 async def get_driver_from_db(driver_id: int, db: AsyncSession) -> Optional[Driver]:

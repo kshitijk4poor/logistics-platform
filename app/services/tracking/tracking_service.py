@@ -2,11 +2,12 @@ import logging
 from typing import Any, Dict, List
 
 import h3
+from fastapi import WebSocketDisconnect
+from sqlalchemy.orm import Session
+
 from app.models import BookingStatusEnum, Driver
 from app.services.booking.booking_service import update_booking_status
 from app.services.tracking import publish_location, verify_token
-from fastapi import WebSocketDisconnect
-from sqlalchemy.orm import Session
 
 
 class TrackingService:

@@ -1,11 +1,12 @@
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.dependencies import get_db
 from app.schemas.pricing import PricingCreate, PricingResponse
 from app.services.pricing.pricing_service import (
     create_pricing_service,
     get_pricing_service,
 )
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

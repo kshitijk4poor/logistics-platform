@@ -1,7 +1,8 @@
-from app.models import Analytics
-from app.schemas.analytics import AnalyticsCreate, AnalyticsResponse
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Analytics
+from app.schemas.analytics import AnalyticsCreate, AnalyticsResponse
 
 
 async def create_analytics_service(

@@ -1,8 +1,9 @@
-from app.models import User
-from app.schemas.user import UserCreate, UserResponse
 from fastapi import HTTPException
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import User
+from app.schemas.user import UserCreate, UserResponse
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

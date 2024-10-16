@@ -4,6 +4,7 @@ from typing import Optional
 
 import h3
 import httpx
+
 from app.schemas.pricing import PricingSchema
 from app.services.caching.cache import get_redis_client
 

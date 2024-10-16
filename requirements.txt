@@ -17,3 +17,6 @@ prometheus-fastapi-instrumentator
 passlib[bcrypt]
 circuitbreaker
 opentelemetry-api
+asyncpg
+aiohttp
+python-socketio

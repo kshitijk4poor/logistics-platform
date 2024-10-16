@@ -14,15 +14,16 @@ POSTGRES_DB = os.getenv("POSTGRES_DB", "your_database")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
-SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+# PgBouncer connection string
+SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:6432/{POSTGRES_DB}"
 
 # Create asynchronous engine
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=True,
     poolclass=QueuePool,
-    pool_size=10,
-    max_overflow=20,
+    pool_size=20,
+    max_overflow=40,
     pool_timeout=30,
     pool_recycle=1800,
 )
@@ -35,19 +36,3 @@ Base = declarative_base()
 
 # Configure logging
 logging.basicConfig()
-logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Asynchronous generator that yields an AsyncSession and ensures it is properly closed after use.
-    """
-    async with async_session() as session:
-        try:
-            yield session
-        except Exception as e:
-            await session.rollback()
-            logging.error(f"Session rollback because of exception: {e}")
-            raise
-        finally:
-            await session.close()

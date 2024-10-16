@@ -1,13 +1,14 @@
 from datetime import datetime
 
+from fastapi import BackgroundTasks, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models import Booking, BookingStatusEnum, User
 from app.schemas.booking import BookingRequest, BookingResponse
 from app.services.caching.cache import cache
 from app.services.pricing import calculate_price
 from app.services.validation.booking_validation import validate_booking
 from app.tasks import process_immediate_booking, schedule_booking_processing
-from fastapi import BackgroundTasks, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_new_booking(

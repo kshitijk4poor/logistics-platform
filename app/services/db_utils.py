@@ -1,6 +1,7 @@
-from app.models import Driver, Vehicle
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from app.models import Driver, Vehicle
 
 
 async def get_vehicle_by_id(db: AsyncSession, vehicle_id: int) -> Vehicle:

@@ -1,6 +1,13 @@
 import asyncio
 import logging
 
+import socketio
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.future import select
+
 from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.models import Role, RoleEnum
 from app.routes import (
@@ -13,18 +20,34 @@ from app.routes import (
     users,
     websockets,
 )
-from app.services.websocket_service import manager
 from app.tasks.demand import update_demand
 from db.database import async_session, engine
-from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+
+Base = declarative_base()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")
 
+# Initialize Socket.IO with Redis adapter
+sio = socketio.AsyncServer(
+    async_mode="asgi",
+    cors_allowed_origins=["*"],
+    adapter=socketio.RedisManager("redis://redis:6379/0"),
+)
+
 app = FastAPI()
+
+# Wrap FastAPI with Socket.IO
+app_asgi = socketio.ASGIApp(sio, app)
+
+# Add CORS middleware if necessary
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Adjust as needed
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.add_middleware(RateLimiterMiddleware)
 
@@ -34,11 +57,25 @@ app.include_router(tracking.router, prefix="/api/v1", tags=["tracking"])
 app.include_router(pricing.router, prefix="/api/v1", tags=["pricing"])
 app.include_router(analytics.router, prefix="/api/v1", tags=["analytics"])
 app.include_router(drivers.router, prefix="/api/v1", tags=["drivers"])
+app.include_router(users.router, prefix="/api/v1", tags=["users"])
 app.include_router(websockets.router, prefix="/api/v1", tags=["websockets"])
-app.include_router(users.router, prefix="/api/v1", tags=["users"])  # Add this line
 
 instrumentator = Instrumentator()
 instrumentator.instrument(app).expose(app)
+
+
+# Socket.IO Event Handlers
+@sio.event
+async def connect(sid, environ):
+    logger.info(f"Client connected: {sid}")
+
+
+@sio.event
+async def disconnect(sid):
+    logger.info(f"Client disconnected: {sid}")
+
+
+# Add other Socket.IO event handlers as needed
 
 
 async def create_roles():
@@ -55,12 +92,36 @@ async def create_roles():
     logger.info("Roles ensured.")
 
 
+async def connect_to_db():
+    retries = 5
+    while retries > 0:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Successfully connected to the database.")
+            break
+        except Exception as e:
+            logger.error(f"Failed to connect to the database: {e}")
+            retries -= 1
+            await asyncio.sleep(5)
+    if retries == 0:
+        logger.error("Failed to connect to the database after multiple attempts.")
+        raise Exception("Could not connect to the database")
+
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(update_demand())
+    await connect_to_db()
     await create_roles()
 
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Logistics Platform API"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app_asgi, host="0.0.0.0", port=8000)

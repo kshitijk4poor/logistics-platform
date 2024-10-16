@@ -1,5 +1,8 @@
 from typing import List
 
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.dependencies import get_current_admin, get_db
 from app.schemas.vehicles import VehicleResponse, VehicleSchema, VehicleUpdate
 from app.services.admin.admin_service import (
@@ -8,8 +11,6 @@ from app.services.admin.admin_service import (
     get_fleet,
     update_vehicle,
 )
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 

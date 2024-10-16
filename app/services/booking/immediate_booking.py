@@ -1,11 +1,12 @@
 from datetime import datetime
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models import Booking, BookingStatusEnum
 from app.services.assignment.matching import find_nearest_driver
 from app.services.communication.notification import notify_driver_assignment
 from app.services.validation.validation import validate_booking
 from db.database import get_db
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def process_immediate_booking(booking_id: int):
