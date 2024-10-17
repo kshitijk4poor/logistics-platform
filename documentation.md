@@ -1,4 +1,4 @@
-# Driver Availability Service Technical Documentation
+# Logistics Platform Technical Documentation
 
 ## Table of Contents
 
@@ -13,15 +13,16 @@
    4.5 [Analytics Processing](#45-analytics-processing)
    4.6 [WebSocket and Real-time Communication](#46-websocket-and-real-time-communication)
    4.7 [Bonus Task: Scheduled Booking](#47-scheduled-booking)
-5. [Scalability and Performance](#5-scalability-and-performance)
-6. [Security Considerations](#6-security-considerations)
-7. [Error Handling and Resilience](#7-error-handling-and-resilience)
-8. [Testing Strategy](#8-testing-strategy)
-9. [Deployment and DevOps](#9-deployment-and-devops)
+5. [Database Design](#5-database-design)
+6. [Scalability and Performance](#6-scalability-and-performance)
+7. [Security Considerations](#7-security-considerations)
+8. [Error Handling and Resilience](#8-error-handling-and-resilience)
+9. [Testing Strategy](#9-testing-strategy)
+10. [Deployment and DevOps](#10-deployment-and-devops)
 
 ## 1. System Overview
 
-The Driver Availability Service is a comprehensive logistics platform designed to manage driver availability, bookings, and real-time tracking. It utilizes a microservices architecture to ensure scalability and maintainability.
+The Logistics Platform is a comprehensive logistics platform designed to manage driver availability, bookings, and real-time tracking. It utilizes a microservices architecture to ensure scalability and maintainability.
 
 ## 2. Key Components
 
@@ -430,7 +431,57 @@ The Scheduled Booking feature enhances the Driver Availability Service by allowi
 - Recovery procedures for missed bookings due to system downtime.
 - Periodic validation of future bookings to ensure resource availability.
 
-## 5. Scalability and Performance
+## 5. Database Design
+
+The database design for the Logistics Platform is structured to efficiently manage users, drivers, vehicles, bookings, and related entities. The ER-Diagram illustrates the relationships between these entities:
+
+![ER-Diagram](ER-Diagram.png)
+
+### Key Entities and Relationships
+
+1. **Users and Drivers**
+   - Both users and drivers are derived from a common base with shared attributes like name, email, and phone number.
+   - They are differentiated by their roles, which are defined in the `roles` table.
+   - This design allows for flexible user management and role-based access control (RBAC).
+
+2. **Bookings**
+   - The central entity connecting users, drivers, and vehicles.
+   - Contains essential information such as pickup and dropoff locations, vehicle type, price, and status.
+   - The `scheduled_time` field enables support for future bookings.
+   - Version control is implemented through the `version` field, allowing for optimistic locking.
+
+3. **Vehicles**
+   - Represents the fleet of vehicles available in the system.
+   - Each vehicle is associated with a driver (optional, as indicated by the `driver_id` foreign key).
+   - Includes details like vehicle type, make, model, and capacity.
+
+4. **Booking Status History**
+   - Tracks the progression of booking statuses over time.
+   - Enables detailed analytics and auditing of the booking lifecycle.
+
+5. **Maintenance Periods**
+   - Allows scheduling and tracking of vehicle maintenance.
+   - Linked to specific vehicles, helping in fleet management and availability planning.
+
+### Design Considerations
+
+1. **Scalability**: The design separates concerns (users, drivers, vehicles, bookings) into distinct tables, allowing for independent scaling of each entity.
+
+2. **Flexibility**: The use of enumerated types (e.g., for vehicle types and booking statuses) provides flexibility for future additions while maintaining data integrity.
+
+3. **Performance**: 
+   - Indexes are implemented on frequently queried fields (e.g., `booking.status`, `booking.driver_id`) to optimize query performance.
+   - The use of `point` data type for location data enables efficient geospatial queries.
+
+4. **Data Integrity**: Foreign key relationships ensure referential integrity across the database.
+
+5. **Auditing and Analytics**: The `booking_status_history` table facilitates comprehensive tracking of booking state changes, useful for both auditing and analytics purposes.
+
+### Conclusion
+
+The database design for the Logistics Platform provides a solid foundation for managing the complex relationships between users, drivers, vehicles, and bookings. It is designed with scalability, performance, and flexibility in mind, allowing for future enhancements and optimizations as the platform grows.
+
+## 6. Scalability and Performance
 
 - **Microservices Architecture:** Allows independent scaling of services.
 - **Asynchronous Processing:** Utilizes FastAPI's asynchronous capabilities for non-blocking I/O operations.
@@ -438,26 +489,26 @@ The Scheduled Booking feature enhances the Driver Availability Service by allowi
 - **Load Balancing:** Nginx distributes incoming traffic across multiple backend instances.
 - **Database Optimization:** PgBouncer is used for connection pooling, and read replicas can be added for scaling read operations.
 
-## 6. Security Considerations
+## 7. Security Considerations
 
 - **Authentication:** JWT-based authentication for API and WebSocket connections.
 - **Rate Limiting:** Implemented to prevent abuse of the API.
 - **Data Encryption:** All sensitive data is encrypted at rest and in transit.
 - **Role-Based Access Control (RBAC):** Different access levels for users, drivers, and admins.
 
-## 7. Error Handling and Resilience
+## 8. Error Handling and Resilience
 
 - **Circuit Breakers:** Use circuit breakers to prevent cascading failures.
 - **Retry Mechanisms:** Implement intelligent retry logic for transient failures.
 - **Comprehensive Logging:** Ensure detailed logging for all errors and exceptions.
 
-## 8. Testing Strategy
+## 9. Testing Strategy
 
 - **Unit Testing:** Implemented comprehensive unit tests for all components.
 - **Integration Testing:** Conduct integration tests to ensure proper interaction between services.
 - **End-to-End Testing:** Implement automated E2E tests to validate complete user flows.
 
-## 9. Deployment and DevOps
+## 10. Deployment and DevOps
 
 - **Containerization:** Use Docker for consistent deployment across environments.
 - **Orchestration:** Leverage Kubernetes for container orchestration and scaling.

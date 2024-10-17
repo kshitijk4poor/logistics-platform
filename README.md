@@ -1,6 +1,6 @@
 # 🚚 Driver Availability Service 🌐
 
-This project is a solution for the Atlan Engineering Internship Task, focusing on building a scalable Driver Availability Service using Apache Kafka and other microservices.
+This project is a personal solution for building a scalable Driver Availability Service using Apache Kafka and other microservices.
 
 ## 🌟 Features
 
@@ -110,14 +110,12 @@ For more information on deployment and DevOps practices, see the [Technical Docu
 
 ## 🤝 Contributing
 
-This project is part of the Atlan Engineering Internship Task. While it's not open for external contributions, we welcome any feedback or suggestions you might have.
+While this is a personal project, I welcome any feedback or suggestions you might have.
 
-## 📝 Task Requirements
 
-This project aims to fulfill the requirements specified in the [Atlan Engineering Internship Task](https://atlanhq.notion.site/Atlan-Engineering-Internship-Task-11c0e027187b80c0b036c90057d6806c), including the implementation of a Kafka consumer, data storage, API endpoints, scalability, testing, and containerization.
 
-## 🌟 Bonus Task Implementation
 
-In addition to the core requirements, this project implements bonus tasks such as real-time location tracking, geospatial indexing, and an advanced microservices architecture. For detailed information on these implementations, please refer to the [Technical Documentation](./documentation.md).
 
-For more details on the task and evaluation criteria, please refer to the official task description.
+## 🌟 Additional Features
+
+This project implements advanced features such as real-time location tracking, geospatial indexing, and an advanced microservices architecture. For detailed information on these implementations, please refer to the [Technical Documentation](./documentation.md).
