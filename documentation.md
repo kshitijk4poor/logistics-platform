@@ -4,19 +4,20 @@
 
 1. [System Overview](#1-system-overview)
 2. [Key Components](#2-key-components)
-3. [Feature Workflows](#3-feature-workflows)
-   3.1 [Real-time Location Tracking](#31-real-time-location-tracking)
-   3.2 [Booking Management](#32-booking-management)
-   3.3 [Dynamic Pricing](#33-dynamic-pricing)
-   3.4 [Driver Matching Algorithm](#34-driver-matching-algorithm)
-   3.5 [Analytics Processing](#35-analytics-processing)
-   3.6 [WebSocket and Real-time Communication](#36-websocket-and-real-time-communication)
-   3.7 [Bonus Task: Scheduled Booking](#37-scheduled-booking)
-4. [Scalability and Performance](#4-scalability-and-performance)
-5. [Security Considerations](#5-security-considerations)
-6. [Error Handling and Resilience](#6-error-handling-and-resilience)
-7. [Testing Strategy](#7-testing-strategy)
-8. [Deployment and DevOps](#8-deployment-and-devops)
+3. [System Architecture](#3-system-architecture)
+4. [Feature Workflows](#4-feature-workflows)
+   4.1 [Real-time Location Tracking](#41-real-time-location-tracking)
+   4.2 [Booking Management](#42-booking-management)
+   4.3 [Dynamic Pricing](#43-dynamic-pricing)
+   4.4 [Driver Matching Algorithm](#44-driver-matching-algorithm)
+   4.5 [Analytics Processing](#45-analytics-processing)
+   4.6 [WebSocket and Real-time Communication](#46-websocket-and-real-time-communication)
+   4.7 [Bonus Task: Scheduled Booking](#47-scheduled-booking)
+5. [Scalability and Performance](#5-scalability-and-performance)
+6. [Security Considerations](#6-security-considerations)
+7. [Error Handling and Resilience](#7-error-handling-and-resilience)
+8. [Testing Strategy](#8-testing-strategy)
+9. [Deployment and DevOps](#9-deployment-and-devops)
 
 ## 1. System Overview
 
@@ -32,9 +33,56 @@ The Driver Availability Service is a comprehensive logistics platform designed t
 - WebSocket for Real-time Communication (Socket.io)
 - Nginx as Reverse Proxy
 
-## 3. Feature Workflows
+## 3. System Architecture
 
-### 3.1 Real-time Location Tracking
+The Driver Availability Service utilizes a microservices architecture to ensure scalability, maintainability, and flexibility. The system is composed of several interconnected components, as illustrated in the architecture diagram below:
+
+![System Architecture Diagram](architecture.png)
+
+### Key Architectural Components:
+
+1. **Load Balancer**: Distributes incoming traffic across multiple backend instances to ensure high availability and optimal performance.
+
+2. **Backend Services**: A collection of microservices, each responsible for specific functionalities:
+   - Analytics Service
+   - Vehicle Management Service
+   - User Management Service
+   - Pricing Service
+   - Notification Service
+   - Authentication Service
+   - Booking Service
+   - Tracking Service
+
+3. **API Gateway**: Serves as the entry point for client applications, routing requests to appropriate backend services.
+
+4. **Celery**: Handles asynchronous task processing, including:
+   - Celery Beat for scheduled tasks
+   - Celery Workers for task execution
+   - Celery Autoscaler for dynamic scaling of workers
+
+5. **Database Layer**:
+   - PgBouncer for connection pooling
+   - PostgreSQL Cluster for data persistence
+
+6. **Caching Layer**: Redis Cache for high-speed data access and caching
+
+7. **Message Broker**: Kafka Cluster for event streaming and inter-service communication
+
+8. **Real-time Communication**: Socket.IO Server for WebSocket connections with clients
+
+9. **Monitoring and Logging**:
+   - Grafana for data visualization
+   - Prometheus for metrics collection and alerting
+
+10. **Client Applications**: Various client-side applications (web, mobile) that interact with the system
+
+11. **Driver Devices**: Mobile devices used by drivers for real-time location updates and job management
+
+This architecture allows for independent scaling of services, efficient real-time communication, and robust data processing capabilities. The use of microservices enables the system to handle high loads and provides flexibility for future enhancements and feature additions.
+
+## 4. Feature Workflows
+
+### 4.1 Real-time Location Tracking
 
 #### Overview
 
@@ -74,7 +122,7 @@ The real-time location tracking feature enables continuous monitoring of driver 
 - H3 spatial indexing enables efficient nearby driver searches
 - WebSocket connections managed by the ConnectionManager for real-time updates
 
-### 3.2 Booking Management
+### 4.2 Booking Management
 
 #### Overview
 
@@ -115,7 +163,7 @@ The booking management feature handles the creation, processing, and lifecycle o
 - WebSocket for real-time status updates to users and drivers
 - Implement database sharding for large-scale booking data storage
 
-### 3.3 Dynamic Pricing
+### 4.3 Dynamic Pricing
 
 #### Overview
 
@@ -162,7 +210,7 @@ The dynamic pricing feature adjusts taxi fares based on real-time demand and veh
    - Redis caching for quick access to recent price calculations
    - Error handling and logging for system resilience
 
-### 3.4 Driver Matching Algorithm
+### 4.4 Driver Matching Algorithm
 
 #### Overview
 
@@ -217,7 +265,7 @@ The driver matching algorithm ensures efficient and accurate assignment of drive
    - Logging of matching algorithm performance metrics (e.g., time taken, number of drivers considered)
    - Regular analysis of these metrics to identify areas for improvement
 
-### 3.5 Analytics Processing
+### 4.5 Analytics Processing
 
 #### Overview
 
@@ -252,13 +300,13 @@ The analytics processing feature collects and analyzes data from various sources
 - Celery for scalable background processing
 - Redis for caching frequently accessed analytics data
 
-### 3.6 WebSocket and Real-time Communication
+### 4.6 WebSocket and Real-time Communication
 
-#### 3.6.1 System Overview
+#### 4.6.1 System Overview
 
 This feature facilitates real-time location tracking and communication between drivers and users through WebSocket connections and Redis pub/sub messaging.
 
-#### 3.6.2 Key Components
+#### 4.6.2 Key Components
 
 - WebSocket endpoints for drivers and users
 - ConnectionManager for handling active connections
@@ -266,13 +314,13 @@ This feature facilitates real-time location tracking and communication between d
 - TrackingService for processing location updates
 - NotificationService for sending targeted messages
 
-#### 3.6.3 WebSocket Endpoints
+#### 4.6.3 WebSocket Endpoints
 
 - `/ws/drivers`: For driver connections
 - `/ws/users`: For user connections
 - `/ws/drivers/batch`: For batch updates from drivers
 
-#### 3.6.4 Detailed Workflow
+#### 4.6.4 Detailed Workflow
 
 1. **Connection Establishment:**
 
@@ -296,31 +344,31 @@ This feature facilitates real-time location tracking and communication between d
    - NotificationService uses ConnectionManager to send targeted or broadcast messages
    - Functions like `notify_driver_assignment` and `notify_nearby_drivers` send real-time notifications
 
-#### 3.6.5 Error Handling
+#### 4.6.5 Error Handling
 
 - Implement reconnection logic for dropped connections
 - Handle timeouts and connection limits
 - Validate incoming messages to prevent malformed data
 
-#### 3.6.6 Scalability Considerations
+#### 4.6.6 Scalability Considerations
 
 - Use Redis for storing driver locations and H3 indexes
 - Implement batch processing of location updates
 - Use Celery tasks for background processing of analytics and scheduled bookings
 
-#### 3.6.7 Security Measures
+#### 4.6.7 Security Measures
 
 - Implement JWT authentication for WebSocket connections
 - Use secure WebSocket connections (WSS) for encrypted communication
 - Implement rate limiting to prevent abuse
 
-#### 3.6.8 Performance Optimization
+#### 4.6.8 Performance Optimization
 
 - Use H3 spatial indexing for efficient geospatial queries
 - Leverage Redis pub/sub for low-latency real-time updates
 - Implement caching for frequently accessed data
 
-### 3.7 Scheduled Booking
+### 4.7 Scheduled Booking
 
 #### Overview
 
@@ -382,7 +430,7 @@ The Scheduled Booking feature enhances the Driver Availability Service by allowi
 - Recovery procedures for missed bookings due to system downtime.
 - Periodic validation of future bookings to ensure resource availability.
 
-## 4. Scalability and Performance
+## 5. Scalability and Performance
 
 - **Microservices Architecture:** Allows independent scaling of services.
 - **Asynchronous Processing:** Utilizes FastAPI's asynchronous capabilities for non-blocking I/O operations.
@@ -390,26 +438,26 @@ The Scheduled Booking feature enhances the Driver Availability Service by allowi
 - **Load Balancing:** Nginx distributes incoming traffic across multiple backend instances.
 - **Database Optimization:** PgBouncer is used for connection pooling, and read replicas can be added for scaling read operations.
 
-## 5. Security Considerations
+## 6. Security Considerations
 
 - **Authentication:** JWT-based authentication for API and WebSocket connections.
 - **Rate Limiting:** Implemented to prevent abuse of the API.
 - **Data Encryption:** All sensitive data is encrypted at rest and in transit.
 - **Role-Based Access Control (RBAC):** Different access levels for users, drivers, and admins.
 
-## ## 6. Error Handling and Resilience
+## 7. Error Handling and Resilience
 
 - **Circuit Breakers:** Use circuit breakers to prevent cascading failures.
 - **Retry Mechanisms:** Implement intelligent retry logic for transient failures.
 - **Comprehensive Logging:** Ensure detailed logging for all errors and exceptions.
 
-## 7. Testing Strategy
+## 8. Testing Strategy
 
 - **Unit Testing:** Implemented comprehensive unit tests for all components.
 - **Integration Testing:** Conduct integration tests to ensure proper interaction between services.
 - **End-to-End Testing:** Implement automated E2E tests to validate complete user flows.
 
-## 8. Deployment and DevOps
+## 9. Deployment and DevOps
 
 - **Containerization:** Use Docker for consistent deployment across environments.
 - **Orchestration:** Leverage Kubernetes for container orchestration and scaling.

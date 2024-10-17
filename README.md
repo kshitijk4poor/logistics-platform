@@ -75,7 +75,7 @@ We use pytest for unit and integration testing. Run tests with:
 pytest
 ```
 
-For more details on our testing strategy, including unit, integration, and end-to-end testing, please refer to the [Technical Documentation](./documentation/documentation.md#7-testing-strategy).
+For more details on our testing strategy, including unit, integration, and end-to-end testing, please refer to the [Technical Documentation](./documentation.md#7-testing-strategy).
 
 ## 🔒 Security Considerations
 
@@ -86,7 +86,7 @@ This project implements various security measures, including:
 - Data encryption at rest and in transit
 - Role-Based Access Control (RBAC)
 
-For more information on security measures, please see the [Technical Documentation](./documentation/documentation.md#5-security-considerations).
+For more information on security measures, please see the [Technical Documentation](./documentation.md#5-security-considerations).
 
 ## 📈 Performance and Error Handling
 
@@ -96,7 +96,7 @@ The system is designed with performance and resilience in mind, implementing:
 - Intelligent retry mechanisms for transient failures
 - Comprehensive logging for all errors and exceptions
 
-For more details, refer to the [Technical Documentation](./documentation/documentation.md#6-error-handling-and-resilience).
+For more details, refer to the [Technical Documentation](./documentation.md#6-error-handling-and-resilience).
 
 ## 🚀 Deployment and DevOps
 
@@ -106,7 +106,7 @@ The project uses:
 - Kubernetes for container orchestration and scaling
 - Prometheus and Grafana for monitoring and alerting
 
-For more information on deployment and DevOps practices, see the [Technical Documentation](./documentation/documentation.md#8-deployment-and-devops).
+For more information on deployment and DevOps practices, see the [Technical Documentation](./documentation.md#8-deployment-and-devops).
 
 ## 🤝 Contributing
 
@@ -118,6 +118,6 @@ This project aims to fulfill the requirements specified in the [Atlan Engineerin
 
 ## 🌟 Bonus Task Implementation
 
-In addition to the core requirements, this project implements bonus tasks such as real-time location tracking, geospatial indexing, and an advanced microservices architecture. For detailed information on these implementations, please refer to the [Technical Documentation](./documentation/documentation.md).
+In addition to the core requirements, this project implements bonus tasks such as real-time location tracking, geospatial indexing, and an advanced microservices architecture. For detailed information on these implementations, please refer to the [Technical Documentation](./documentation.md).
 
 For more details on the task and evaluation criteria, please refer to the official task description.
