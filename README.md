@@ -1,6 +1,6 @@
-# 🚚 Driver Availability Service 🌐
+# 🚚 On-Demand Logistics Platform for Goods Transportation 🌐
 
-This project is a personal solution for building a scalable Driver Availability Service using Apache Kafka and other microservices.
+This project is a personal solution for building an On-Demand Logistics Platform for Goods Transportation Service using Apache Kafka and other microservices.
 
 ## 🌟 Features
 
