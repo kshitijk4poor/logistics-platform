@@ -2,7 +2,6 @@ import asyncio
 import json
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
-
 from app.config import settings
 
 KAFKA_TOPIC_DRIVER_LOCATIONS = "driver_locations"

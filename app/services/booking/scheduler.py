@@ -1,8 +1,6 @@
 import asyncio
 from datetime import datetime
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models import Booking, BookingStatusEnum, BookingStatusHistory
 from app.services.assignment.matching import find_nearest_driver
 from app.services.communication.notification import notify_driver_assignment
@@ -10,6 +8,7 @@ from app.services.messaging.kafka_service import (KAFKA_TOPIC_BOOKING_UPDATES,
                                                   kafka_service)
 from app.services.validation.validation import validate_booking
 from db.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def process_scheduled_booking(booking_id: int):

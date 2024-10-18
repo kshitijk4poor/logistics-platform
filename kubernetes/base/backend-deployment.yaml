@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: your-registry/logistics-platform-backend:latest
+        # Use Docker Hub for the image repository
+        image: logistics-platform/backend:latest
         ports:
         - containerPort: 8000
         envFrom:

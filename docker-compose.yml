@@ -13,9 +13,9 @@ services:
       - celery_worker
       - celery_beat
     environment:
-      - DATABASE_URL=postgresql://user:password@pgbouncer:6432/logistics
-      - REDIS_URL=redis://redis:6379/0
-      - KAFKA_URL=kafka:9092
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - KAFKA_URL=${KAFKA_URL}
       - SECRET_KEY=${SECRET_KEY}
       - ALGORITHM=${ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}

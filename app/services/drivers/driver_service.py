@@ -1,8 +1,7 @@
-from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models import Driver
 from app.schemas.driver import DriverCreate, DriverResponse
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_driver_service(

@@ -3,23 +3,24 @@ import logging
 from datetime import datetime, timedelta
 
 import aioredis
+from app.models import Booking, BookingStatusEnum, Driver, User
 from celery import Celery
+from db.database import engine
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Booking, BookingStatusEnum, Driver, User
-from db.database import engine
+from .config import settings
 
 # Setup basic configuration for logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-app = Celery("tasks", broker="redis://localhost:6379/0")
+app = Celery("tasks", broker=settings.CELERY_BROKER_URL)
 
 
 async def get_redis_client():
-    return await aioredis.from_url("redis://localhost", decode_responses=True)
+    return await aioredis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
 @app.on_after_configure.connect

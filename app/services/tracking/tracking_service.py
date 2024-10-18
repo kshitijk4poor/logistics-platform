@@ -4,9 +4,6 @@ from datetime import datetime
 from typing import Any, Dict
 
 import h3
-from fastapi import WebSocketDisconnect
-from sqlalchemy.orm import Session
-
 from app.models import Driver
 from app.services.booking.booking_service import update_booking_status
 from app.services.messaging.kafka_service import (
@@ -14,6 +11,8 @@ from app.services.messaging.kafka_service import (
     kafka_service)
 from app.services.tracking import verify_token
 from app.services.tracking.location_update import update_driver_locations
+from fastapi import WebSocketDisconnect
+from sqlalchemy.orm import Session
 
 
 class TrackingService:

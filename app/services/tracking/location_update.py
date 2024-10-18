@@ -3,7 +3,6 @@ import time
 from typing import Any, Dict, List
 
 import h3
-
 from app.services.messaging.kafka_service import kafka_service
 
 KAFKA_TOPIC_DRIVER_LOCATIONS = "driver_locations"

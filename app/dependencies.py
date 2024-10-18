@@ -5,20 +5,17 @@ from functools import wraps
 
 import aioredis
 import httpx
+from app.models import Driver, RoleEnum, User
+from db.database import get_db
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import BaseSettings
 from sqlalchemy.orm import Session
 
-from app.models import Driver, RoleEnum, User
-from db.database import get_db
-
 from .config import settings
 
-redis = aioredis.from_url(
-    "redis://localhost", decode_responses=True, max_connections=10
-)
+redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True, max_connections=10)
 
 
 class Settings(BaseSettings):

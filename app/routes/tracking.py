@@ -1,16 +1,15 @@
 import logging
 
 import h3
-from fastapi import (APIRouter, Depends, Security, WebSocket,
-                     WebSocketDisconnect)
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-
 from app.dependencies import get_current_driver, get_current_user
 from app.models import Driver, User
 from app.services.communication.websocket_service import ConnectionManager
 from app.services.tracking.tracking_service import TrackingService
 from db.database import get_db
+from fastapi import (APIRouter, Depends, Security, WebSocket,
+                     WebSocketDisconnect)
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 

@@ -1,24 +1,28 @@
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from app.services.communication import WebSocketManager
+
 
 @pytest.mark.asyncio
 async def test_successful_user_connection():
     websocket = AsyncMock()
     token = "valid_user_token"
-    with patch('app.services.websocket.authenticate_user', return_value=True):
+    with patch("app.services.websocket.authenticate_user", return_value=True):
         manager = WebSocketManager()
         await manager.connect(websocket, token)
         assert websocket in manager.active_connections
+
 
 @pytest.mark.asyncio
 async def test_successful_driver_connection():
     websocket = AsyncMock()
     token = "valid_driver_token"
-    with patch('app.services.websocket.authenticate_driver', return_value=True):
+    with patch("app.services.websocket.authenticate_driver", return_value=True):
         manager = WebSocketManager()
         await manager.connect(websocket, token)
         assert websocket in manager.active_connections
+
 
 @pytest.mark.asyncio
 async def test_connection_without_token():
@@ -28,23 +32,26 @@ async def test_connection_without_token():
     with pytest.raises(ValueError):
         await manager.connect(websocket, token)
 
+
 @pytest.mark.asyncio
 async def test_connection_with_invalid_token():
     websocket = AsyncMock()
     token = "invalid_token"
-    with patch('app.services.websocket.authenticate_user', return_value=False):
+    with patch("app.services.websocket.authenticate_user", return_value=False):
         manager = WebSocketManager()
         with pytest.raises(ValueError):
             await manager.connect(websocket, token)
+
 
 @pytest.mark.asyncio
 async def test_driver_connection_by_non_driver():
     websocket = AsyncMock()
     token = "non_driver_token"
-    with patch('app.services.websocket.authenticate_driver', return_value=False):
+    with patch("app.services.websocket.authenticate_driver", return_value=False):
         manager = WebSocketManager()
         with pytest.raises(ValueError):
             await manager.connect(websocket, token)
+
 
 @pytest.mark.asyncio
 async def test_successful_location_update():
@@ -54,6 +61,7 @@ async def test_successful_location_update():
     await manager.receive_location_update(websocket, location_data)
     assert websocket in manager.active_connections
 
+
 @pytest.mark.asyncio
 async def test_unauthorized_location_update():
     websocket = AsyncMock()
@@ -61,6 +69,7 @@ async def test_unauthorized_location_update():
     manager = WebSocketManager()
     with pytest.raises(PermissionError):
         await manager.receive_location_update(websocket, location_data)
+
 
 @pytest.mark.asyncio
 async def test_malformed_location_data():
@@ -70,6 +79,7 @@ async def test_malformed_location_data():
     with pytest.raises(ValueError):
         await manager.receive_location_update(websocket, location_data)
 
+
 @pytest.mark.asyncio
 async def test_user_disconnection():
     websocket = AsyncMock()
@@ -77,6 +87,7 @@ async def test_user_disconnection():
     manager.active_connections.add(websocket)
     await manager.disconnect(websocket)
     assert websocket not in manager.active_connections
+
 
 @pytest.mark.asyncio
 async def test_driver_unexpected_disconnection():
@@ -86,12 +97,14 @@ async def test_driver_unexpected_disconnection():
     await manager.disconnect(websocket)
     assert websocket not in manager.active_connections
 
+
 @pytest.mark.asyncio
 async def test_disconnect_without_authentication():
     websocket = AsyncMock()
     manager = WebSocketManager()
     await manager.disconnect(websocket)
     assert websocket not in manager.active_connections
+
 
 @pytest.mark.asyncio
 async def test_room_assignment():
@@ -100,6 +113,7 @@ async def test_room_assignment():
     manager = WebSocketManager()
     await manager.assign_to_room(websocket, room_id)
     assert websocket in manager.rooms[room_id]
+
 
 @pytest.mark.asyncio
 async def test_message_broadcast():

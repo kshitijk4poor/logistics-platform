@@ -1,13 +1,12 @@
 from typing import List
 
-from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-
 from app.models import Vehicle
 from app.schemas.vehicles import VehicleResponse, VehicleSchema, VehicleUpdate
 from app.services.caching.cache import cache
 from app.services.db_utils import get_vehicle_by_id
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 
 async def get_fleet(db: AsyncSession) -> List[VehicleResponse]:

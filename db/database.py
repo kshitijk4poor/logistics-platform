@@ -2,6 +2,7 @@ import logging
 import os
 from typing import AsyncGenerator
 
+from app.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +16,7 @@ POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 # PgBouncer connection string
-SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:6432/{POSTGRES_DB}"
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 # Create asynchronous engine
 engine = create_async_engine(

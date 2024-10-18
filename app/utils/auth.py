@@ -1,14 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
+from app.config import settings
+from app.models import User
+from app.schemas.user import TokenData
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-
-from app.config import settings
-from app.models import User
-from app.schemas.user import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
