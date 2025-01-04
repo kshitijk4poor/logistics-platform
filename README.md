@@ -2,6 +2,123 @@
 
 This project is a personal solution for building a scalable Logistics Platform using Apache Kafka and other microservices.
 
+```mermaid
+graph TB
+    subgraph Client
+        CL[Client Applications]
+    end
+
+    subgraph Gateway
+        LB[Nginx Load Balancer]:::infra
+        AG["API Gateway"]:::gateway
+        WS["WebSocket Gateway"]:::gateway
+    end
+
+    subgraph Services
+        BS["Booking Service"]:::service
+        DS["Driver Service"]:::service
+        TS["Tracking Service"]:::service
+        PS["Pricing Service"]:::service
+        AS["Analytics Service"]:::service
+        ADS["Admin Service"]:::service
+        CS["Communication Service"]:::service
+        ASS["Assignment Service"]:::service
+    end
+
+    subgraph "Message Broker"
+        KB["Apache Kafka"]:::broker
+    end
+
+    subgraph "Background Processing"
+        AC["Analytics Consumer"]:::worker
+        BC["Booking Consumer"]:::worker
+        DC["Demand Consumer"]:::worker
+        LC["Location Consumer"]:::worker
+        CW["Celery Workers"]:::worker
+    end
+
+    subgraph "Data Layer"
+        PG[(PostgreSQL)]:::database
+        PGB[PgBouncer]:::database
+        RD[(Redis Cache)]:::cache
+    end
+
+    %% Client Layer Connections
+    CL --> LB
+    LB --> AG
+    LB --> WS
+
+    %% Gateway to Services
+    AG --> BS
+    AG --> DS
+    AG --> TS
+    AG --> PS
+    AG --> AS
+    AG --> ADS
+    WS --> CS
+
+    %% Service Interconnections
+    BS --> ASS
+    ASS --> DS
+    TS --> KB
+    DS --> KB
+
+    %% Message Broker to Consumers
+    KB --> AC
+    KB --> BC
+    KB --> DC
+    KB --> LC
+
+    %% Consumers to Services
+    AC --> AS
+    BC --> BS
+    LC --> TS
+
+    %% Services to Data Layer
+    BS --> PGB
+    DS --> PGB
+    TS --> PGB
+    PS --> PGB
+    AS --> PGB
+    ADS --> PGB
+    PGB --> PG
+
+    %% Cache Connections
+    BS --> RD
+    DS --> RD
+    TS --> RD
+    PS --> RD
+
+    %% Styles
+    classDef service fill:#90EE90,stroke:#333,stroke-width:2px
+    classDef gateway fill:#87CEEB,stroke:#333,stroke-width:2px
+    classDef broker fill:#FFA500,stroke:#333,stroke-width:2px
+    classDef database fill:#DDA0DD,stroke:#333,stroke-width:2px
+    classDef cache fill:#E6E6FA,stroke:#333,stroke-width:2px
+    classDef worker fill:#FFD700,stroke:#333,stroke-width:2px
+    classDef infra fill:#FF6B6B,stroke:#333,stroke-width:2px
+
+    %% Click Events
+    click LB "https://github.com/kshitijk4poor/logistics-platform/blob/main/nginx.conf"
+    click AG "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/main.py"
+    click WS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/routes/websockets.py"
+    click BS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/booking/booking_service.py"
+    click DS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/drivers/driver_service.py"
+    click TS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/tracking/tracking_service.py"
+    click PS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/pricing/pricing_service.py"
+    click AS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/analytics/analytics_service.py"
+    click ADS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/admin/admin_service.py"
+    click CS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/communication/notification.py"
+    click ASS "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/assignment/driver_assignment.py"
+    click KB "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/messaging/kafka_service.py"
+    click RD "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/caching/cache.py"
+    click AC "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/analytics/analytics_consumer.py"
+    click BC "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/booking/booking_consumer.py"
+    click DC "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/demand/demand_consumer.py"
+    click LC "https://github.com/kshitijk4poor/logistics-platform/blob/main/app/services/tracking/location_consumer.py"
+    click PGB "https://github.com/kshitijk4poor/logistics-platform/blob/main/pgbouncer.ini"
+    click PG "https://github.com/kshitijk4poor/logistics-platform/blob/main/db/database.py"
+```
 ## 🌟 Features
 
 - 🚗 Real-time driver availability tracking
